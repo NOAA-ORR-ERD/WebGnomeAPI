@@ -53,7 +53,7 @@ supported_ocean_models = {#'GFS-1_4DEG',
                         #'LOOFS':'coops-forecast-agg',
                         #'SFBOFS':'coops-forecast-noagg',
                         'TBOFS':'ioos-forecast-agg',
-                        'NYOFS':'coops-forecast-agg', #switch to ioos when fixed?
+                        'NYOFS':'coops-forecast-agg', #this one may have missing time steps
                         'GOMOFS':'ioos-forecast-agg',
                         'CREOFS_RGRID':'ioos-forecast-agg',
                         }
