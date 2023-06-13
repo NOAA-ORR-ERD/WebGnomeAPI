@@ -13,6 +13,7 @@ import datetime
 import pickle
 from uuid import uuid1
 from multiprocessing import Process
+import queue
 
 import ujson
 import numpy as np
@@ -316,8 +317,8 @@ def get_goods_requests(request):
     returns to the client a jsonified list of GOODSRequest objects
     '''
 
-    log_prefix = 'req{0}: get_currents()'.format(id(request))
-    log.info('>>' + log_prefix)
+    #log_prefix = 'req{0}: get_currents()'.format(id(request))
+    #log.info('>>' + log_prefix)
     session_objs = get_session_objects(request)
 
     params = request.GET
@@ -442,22 +443,36 @@ class GOODSRequest(object):
         logger.info('START')
         self.subset_process = Process(target=subset_process_func, args=(request_args, mq), daemon=True)
         self.subset_process.start()
-        msg = '0%'
-        while '%' in msg:
-            logger.debug('SUBSET PROGESS: ' + msg)
-            msg = mq.get()
+        msg = '0 sec'
+        counter = 0
+        while self.subset_process.is_alive():
+            logger.info('SUBSET PROGESS: ' + msg)
+            try:
+                msg = mq.get(timeout=2)
+            except queue.Empty:
+                pass
+            counter += 2
             if msg == 'success' or msg == 'error':
+                logger.info('leaving progress loop via break')
+                logger.info('Message: {0}'.format(msg))
                 break
-            msg = msg + '%'
+            else:
+                msg = counter
+                msg = str(counter) + ' sec'
         status = msg
         result = mq.get(timeout=1)
-        self.subset_process.join()
+        proc_return = self.subset_process.join(timeout=2) #5 minute subset timeout
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
-        if self.subset_process.exitcode:
+        if self.subset_process.exitcode is None: #process still running, so join timed out
+            logger.error('Failed subset for {0}'.format(request_args['request_id']))
+            self.cancel_request()
+            return
+        elif self.subset_process.exitcode > 0:
             logger.info('SUBSET FAILED: exitcode' + str(self.subset_process.exitcode))
+            return
         if status:
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
@@ -479,7 +494,7 @@ class GOODSRequest(object):
         self.state = 'requesting'
         self.request_process = Process(target=api.get_model_output, args=(self._subset_xr, self.outpath))
         self.request_process.start()
-        self.request_process.join()
+        self.request_process.join(600) #10 minute request timeout
         if self.request_process.exitcode:
             logger.info('REQUEST FAILED: exitcode ' + str(self.request_process.exitcode))
         logger.info('REQUEST COMPLETE')
