@@ -236,7 +236,7 @@ def run_model(request):
                 sid,
                 request)
             gl.session_hash = request.session_hash
-            gl.join()
+            #gl.join()
             return None
         else:
             return None
