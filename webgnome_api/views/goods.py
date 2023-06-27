@@ -384,7 +384,7 @@ class GOODSRequest(object):
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
-        self.percent = 0
+        self.time_elapsed = 0
         self.message = None #set by worker thread
         self.request_process = None
         self.pause_event = threading.Event() #lock for main thread to clear on reconfirmation
@@ -401,8 +401,8 @@ class GOODSRequest(object):
                'filename': self.filename,
                'state': self.state,
                'size': self.subset_size,
-               'percent': self.percent,
-               'message': self.message,
+               'time_elapsed': self.time_elapsed,
+               'message': str(self.message),
                'outpath': self.outpath,
                'tshift': self.tshift}
 
@@ -443,9 +443,13 @@ class GOODSRequest(object):
         logger.info('START')
         self.subset_process = Process(target=subset_process_func, args=(request_args, mq), daemon=True)
         self.subset_process.start()
+        if (not mq.get(timeout=10)):
+            self.error('Subset startup failed')
+            self.cancel_request()
         msg = '0 sec'
         counter = 0
-        while self.subset_process.is_alive():
+        timeout = 180
+        while counter < timeout: # 3 minutes until loop times out
             logger.info('SUBSET PROGESS: ' + msg)
             try:
                 msg = mq.get(timeout=2)
@@ -457,21 +461,25 @@ class GOODSRequest(object):
                 logger.info('Message: {0}'.format(msg))
                 break
             else:
-                msg = counter
-                msg = str(counter) + ' sec'
+                msg = str(counter)
+                self.time_elapsed = counter
         status = msg
         result = mq.get(timeout=1)
-        proc_return = self.subset_process.join(timeout=2) #5 minute subset timeout
+        logger.info('RESULT: {}'.format(result))
+        logger.info('Joining subset process')
+        self.subset_process.join()
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
-        if self.subset_process.exitcode is None: #process still running, so join timed out
-            logger.error('Failed subset for {0}'.format(request_args['request_id']))
+        if self.subset_process.exitcode is None and counter >= timeout: #process still running, so timeout exceeded
+            logger.error('Failed subset for {0} due to timeout'.format(request_args['request_id']))
+            self.error('subset_timeout')
             self.cancel_request()
             return
-        elif self.subset_process.exitcode > 0:
-            logger.info('SUBSET FAILED: exitcode' + str(self.subset_process.exitcode))
+        elif self.subset_process.exitcode or status == 'error':
+            logger.info('SUBSET FAILED: exitcode: ' + str(self.subset_process.exitcode))
+            self.error(result)
             return
         if status:
             logger.info('SUBSET COMPLETE')
@@ -517,10 +525,9 @@ class GOODSRequest(object):
             return
 
 
-    def error(self, msg, exc=None):
+    def error(self, msg):
         self.state = 'error'
         self.message = msg
-        self.exception = exc
 
     def reconfirm(self):
         if self.state == 'too_large':
@@ -615,11 +622,13 @@ class Tracker(Callback):
             self.model.elapsed = elapsed
 
 def subset_process_func(request_args, mq):
+    mq.put('startup') #startup sync message
     try:
+        #raise ValueError('test error')
         result = api.get_model_subset(**request_args)
-        mq.put('success', timeout=1)
-        mq.put(pickle.dumps(result), timeout=1)
+        mq.put('success')
+        mq.put(pickle.dumps(result))
     except Exception as e:
-        mq.put('error', timeout=1)
-        mq.put(str(e), timeout=1)
+        mq.put('error')
+        mq.put(e)
         raise e
