@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2023-05-08
+# on 2023-06-20
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -16,7 +16,7 @@ shapely
 pyproj
 mapbox_earcut
 numpy
-scipy<1.10
+scipy
 gsw
 psutil
 pyzmq
@@ -26,7 +26,7 @@ colander=1.8.3
 netCDF4
 pyshp
 progressbar
-gridded=0.5.3
+gridded=0.5.5
 pynucos
 cell_tree2d
 py_gd=2.*

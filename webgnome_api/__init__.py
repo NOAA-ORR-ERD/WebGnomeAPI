@@ -17,7 +17,7 @@ from pyramid.renderers import JSON as JSONRenderer
 from pyramid.threadlocal import get_current_request
 from pyramid_log import Formatter, _WrapDict, _DottedLookup
 
-from pyramid_redis_sessions import session_factory_from_settings
+from pyramid_session_redis import session_factory_from_settings
 
 from webgnome_api.common.views import cors_policy
 from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
@@ -32,36 +32,38 @@ __version__ = "0.9"
 
 logging.basicConfig()
 
-supported_ocean_models = {#'GFS-1_4DEG',
-                        #'RTOFS-GLOBAL',
-                        #'RTOFS-GLOBAL_2D',
-                        #'GFS-1_2DEG',
-                        #'GFS-1DEG',
-                        'GOFS':'hycom-forecast-agg',
-                        #'RTOFS-ALASKA',
-                        #'RTOFS-WEST',
-                        #'RTOFS-EAST',
-                        'WCOFS':'ioos-forecast-agg',
-                        'NGOFS2_RGRID':'ioos-forecast-agg',
-                        #'CREOFS':'coops-forecast-noagg',
-                        #'LMHOFS':'coops-forecast-noagg',
-                        'CIOFS':'ioos-forecast-agg',
-                        #'LSOFS':'coops-forecast-agg',
-                        'CBOFS':'ioos-forecast-agg',
-                        #'LEOFS':'coops-forecast-noagg',
-                        'DBOFS':'ioos-forecast-agg',
-                        #'LOOFS':'coops-forecast-agg',
-                        #'SFBOFS':'coops-forecast-noagg',
-                        'TBOFS':'ioos-forecast-agg',
-                        #'NYOFS':'coops-forecast-agg', #this one has missing time steps
-                        'GOMOFS':'ioos-forecast-agg',
-                        'CREOFS_RGRID':'ioos-forecast-agg',
-                        }
+supported_ocean_models = {
+    # 'GFS-1_4DEG',
+    # 'RTOFS-GLOBAL',
+    # 'RTOFS-GLOBAL_2D',
+    # 'GFS-1_2DEG',
+    # 'GFS-1DEG',
+    'GOFS': 'hycom-forecast-agg',
+    # 'RTOFS-ALASKA',
+    # 'RTOFS-WEST',
+    # 'RTOFS-EAST',
+    'WCOFS': 'ioos-forecast-agg',
+    'NGOFS2_RGRID': 'ioos-forecast-agg',
+    # 'CREOFS': 'coops-forecast-noagg',
+    # 'LMHOFS': 'coops-forecast-noagg',
+    'CIOFS': 'ioos-forecast-agg',
+    # 'LSOFS': 'coops-forecast-agg',
+    'CBOFS': 'ioos-forecast-agg',
+    # 'LEOFS': 'coops-forecast-noagg',
+    'DBOFS': 'ioos-forecast-agg',
+    # 'LOOFS': 'coops-forecast-agg',
+    # 'SFBOFS': 'coops-forecast-noagg',
+    'TBOFS': 'ioos-forecast-agg',
+    # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
+    'GOMOFS': 'ioos-forecast-agg',
+    'CREOFS_RGRID': 'ioos-forecast-agg',
+}
 
-                        
-supported_met_models = {'GFS_1_4DEG':['ucar-forecast-agg',],
-                        'GFS_1_2DEG':['ucar-forecast-agg',],
-                        'GFS_1DEG':['ucar-forecast-agg',]}
+
+supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
+                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
+                        'GFS_1DEG': ['ucar-forecast-agg', ]}
+
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -205,12 +207,14 @@ def server_factory(global_config, host, port):
         # to allow access to socketio side from pyramid side
         app.application.registry['sio_ns'] = ns
         app.application.registry['goods_ns'] = goods_ns
-        #threads = int(app.application.registry.settings.get('waitress.threads', '4'))
+        # threads = int(app.application.registry.settings
+        #               .get('waitress.threads', '4'))
 
         app = socketio.WSGIApp(sio, app)
         pywsgi.WSGIServer((host, port), app,
                           handler_class=WebSocketHandler).serve_forever()
-        #waitress_serve(app, host=host, port=port, expose_tracebacks=True, threads=threads)
+        # waitress_serve(app, host=host, port=port, threads=threads,
+        #                expose_tracebacks=True)
 
     return serve
 
