@@ -22,11 +22,11 @@ python>=3.8,<3.11
 numpy
 regex
 awesome-slugify
+pyramid>=1.10.1,<2
 paste
 pastedeploy>=2.0
-pyramid>=2.0
 pyramid_log
-pyramid_session_redis
+pyramid_redis_sessions
 cornice>=3.4
 ujson
 docutils

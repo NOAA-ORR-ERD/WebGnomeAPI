@@ -11,8 +11,6 @@ import hashlib
 
 import ujson
 
-from pyramid_session_redis.util import LazyCreateSession
-
 from webgnome_api.common.common_object import (ValueIsJsonObject,
                                                get_session_dir)
 
@@ -83,9 +81,6 @@ class PyGnomeSchemaTweenFactory(object):
 
     def generate_short_session_id(self, request):
         if hasattr(request, 'session'):
-            if isinstance(request.session.session_id, LazyCreateSession):
-                request.session.ensure_id()
-
             hasher = hashlib.sha1(request.session.session_id.encode('utf-8'))
             request.session_hash = (base64.urlsafe_b64encode(hasher.digest())
                                     .decode())
