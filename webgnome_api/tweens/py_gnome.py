@@ -82,10 +82,8 @@ class PyGnomeSchemaTweenFactory(object):
                 self.fix_filename_attrs(request, v)
 
     def generate_short_session_id(self, request):
-        if hasattr(request, 'session'):
-            if isinstance(request.session.session_id, LazyCreateSession):
-                request.session.ensure_id()
-
+        if (hasattr(request, 'session') and
+                not isinstance(request.session.session_id, LazyCreateSession)):
             hasher = hashlib.sha1(request.session.session_id.encode('utf-8'))
             request.session_hash = (base64.urlsafe_b64encode(hasher.digest())
                                     .decode())
