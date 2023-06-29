@@ -443,9 +443,10 @@ class GOODSRequest(object):
         logger.info('START')
         self.subset_process = Process(target=subset_process_func, args=(request_args, mq), daemon=True)
         self.subset_process.start()
-        if (not mq.get(timeout=10)):
+        if (not mq.get(timeout=30)):
             self.error('Subset startup failed')
             self.cancel_request()
+            return
         msg = '0 sec'
         counter = 0
         timeout = 180
