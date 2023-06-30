@@ -402,7 +402,7 @@ class GOODSRequest(object):
                'state': self.state,
                'size': self.subset_size,
                'time_elapsed': self.time_elapsed,
-               'message': str(self.message),
+               'message': repr(self.message),
                'outpath': self.outpath,
                'tshift': self.tshift}
 
@@ -465,10 +465,10 @@ class GOODSRequest(object):
                 msg = str(counter)
                 self.time_elapsed = counter
         status = msg
-        result = mq.get(timeout=1)
-        logger.info('RESULT: {}'.format(result))
         logger.info('Joining subset process')
         self.subset_process.join()
+        result = mq.get()
+        logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
@@ -629,7 +629,11 @@ def subset_process_func(request_args, mq):
         result = api.get_model_subset(**request_args)
         mq.put('success')
         mq.put(pickle.dumps(result))
+        mq.close()
+        mq.join_thread()
     except Exception as e:
         mq.put('error')
-        mq.put(e)
-        raise e
+        mq.put(e, block=True, timeout=5)
+        mq.close()
+        mq.join_thread()
+        raise
