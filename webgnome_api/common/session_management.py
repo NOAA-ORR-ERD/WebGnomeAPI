@@ -3,6 +3,39 @@ Common Gnome object request handlers.
 """
 from threading import Lock
 
+from pyramid_session_redis.util import LazyCreateSession
+from pyramid.httpexceptions import HTTPException
+
+
+def req_session_is_valid(funct):
+    '''
+        This is a decorator function intended to short-circuit a view by
+        returning None if the session in the request is not valid.
+    '''
+    def helper(request, **kwargs):
+        if isinstance(request.session.session_id, LazyCreateSession):
+            return None
+        else:
+            return funct(request, **kwargs)
+
+    return helper
+
+
+def exception_if_none(funct, exc_type=HTTPException):
+    '''
+        This is a decorator function intended to raise an exception if the
+        result of a view-styled function returns None.  View-styled means that
+        a WSGI request object is passed in.
+    '''
+    def helper(request):
+        ret = funct(request)
+        if ret is None:
+            raise exc_type
+        else:
+            return ret
+
+    return helper
+
 
 def init_session_objects(request, force=False):
     session = request.session
@@ -16,6 +49,7 @@ def init_session_objects(request, force=False):
         objects['gnome_session_lock'] = Lock()
 
 
+@req_session_is_valid
 def get_session_objects(request):
     init_session_objects(request)
     obj_pool = request.registry.settings['objects']
@@ -26,7 +60,7 @@ def get_session_objects(request):
 def get_session_object(obj_id, request):
     objects = get_session_objects(request)
 
-    return objects.get(obj_id, None)
+    return None if objects is None else objects.get(obj_id, None)
 
 
 def set_session_object(obj, request):
@@ -63,6 +97,7 @@ def get_active_model(request):
         return None
 
 
+@req_session_is_valid
 def get_uncertain_models(request):
     session_id = request.session.session_id
     uncertainty_models = request.registry.settings['uncertain_models']
@@ -73,6 +108,7 @@ def get_uncertain_models(request):
         return None
 
 
+@req_session_is_valid
 def set_uncertain_models(request):
     from gnome.multi_model_broadcast import ModelBroadcaster
 
@@ -89,6 +125,7 @@ def set_uncertain_models(request):
         uncertain_models[session_id] = model_broadcaster
 
 
+@req_session_is_valid
 def drop_uncertain_models(request):
     session_id = request.session.session_id
     uncertain_models = request.registry.settings['uncertain_models']
@@ -107,15 +144,19 @@ def register_exportable_file(request, basename, filepath):
     file_reg[basename] = filepath
     session['registered_files'] = file_reg
 
+
 def clear_exportable_files(request):
     session = request.session
     session['registered_files'] = {}
 
+
 def unregister_exportable_file(request, basename):
-    #if for some reason we need to do this...
+    # if for some reason we need to do this...
     session = request.session
-    if 'registered_files' in session and basename in session['registered_files']:
+    if ('registered_files' in session and
+            basename in session['registered_files']):
         del session['registered_files'][basename]
+
 
 def get_registered_file(request, basename):
     session = request.session

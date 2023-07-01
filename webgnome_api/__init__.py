@@ -133,14 +133,29 @@ def get_json(request):
     return ujson.loads(request.text, ensure_ascii=False)
 
 
+def my_redis_session_logger(request, raised_exception):
+    """
+    raised_exception will be an instance of InvalidSession
+    log the exception to statsd for metrics
+    """
+    print(f'RedisSession raised exception: {raised_exception} '
+          f'on request {request}')
+
+
 def overload_redis_session_factory(settings, config):
     '''
-        pyramid_redis_sessions will create a session object for every request,
+        pyramid_session_redis will create a session object for every request,
         even the CORS preflight requests, and if there is no session cookie,
         a new session key will be created.  And the CORS preflight requests
         will never have a session cookie.  So we overload the session factory
         function here and add a special case for CORS preflight requests.
     '''
+    # If we ever need to debug what's happening with the Redis sessions,
+    # we can turn on logging here.
+    # settings.update({
+    #     'redis.sessions.func_invalid_logger': my_redis_session_logger
+    # })
+
     session_factory = session_factory_from_settings(settings)
 
     def overloaded_session_factory(request, **kwargs):

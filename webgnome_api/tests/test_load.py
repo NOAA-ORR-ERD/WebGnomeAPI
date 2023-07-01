@@ -1,15 +1,13 @@
 """
 Functional tests for the Gnome Location object Web API
 """
-import os
 import zipfile
-from pathlib import Path
+
+import pytest
 
 from gnome.model import Model
 
 from .base import FunctionalTestBase, MODELS_DIR
-
-import pytest
 
 
 TEST_SAVEFILE = str(MODELS_DIR / "long_island_sound.gnome")
@@ -33,7 +31,6 @@ def compare_savefiles(sfile1, sfile2):
     model2 = Model.load_savefile(sfile2)
 
     return model1 == model2
-
 
 
 class LoadModelTest(FunctionalTestBase):
