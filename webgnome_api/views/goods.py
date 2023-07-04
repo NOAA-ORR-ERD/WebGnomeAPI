@@ -1,56 +1,45 @@
 """
 Views for the GOODS interface.
 """
-import multiprocessing
 import os
-import sys
-import threading
 import time
-import shutil
-import urllib.request
-import logging
 import datetime
+import logging
 import pickle
-from uuid import uuid1
+import threading
+import multiprocessing
 from multiprocessing import Process
 import queue
+from uuid import uuid1
 
 import ujson
-import numpy as np
-
-import shapely.wkt as wkt
-from shapely.geometry import Polygon
 
 from cornice import Service
 
-from pyramid.httpexceptions import (HTTPRequestTimeout,
-                                    HTTPInsufficientStorage,
+from pyramid.httpexceptions import (HTTPInsufficientStorage,
                                     HTTPBadRequest)
 
-from ..common.system_resources import (get_free_space,
-                                       write_bufread_to_file)
+from webgnome_api.common.system_resources import get_free_space
+from webgnome_api.common.common_object import (get_session_dir,)
+from webgnome_api.common.session_management import (get_session_objects,
+                                                    register_exportable_file)
+from webgnome_api.common.views import (cors_policy,
+                                       cors_response,
+                                       gen_unique_filename)
 
-from ..common.common_object import (get_session_dir,)
+from webgnome_api import supported_ocean_models, supported_met_models
 
-from ..common.session_management import (get_session_objects,
-                                         register_exportable_file)
-
-from ..common.views import (switch_to_existing_session,
-                            gen_unique_filename,
-                            cors_exception,
-                            cors_policy,
-                            cors_response)
-
-log = logging.getLogger(__name__)
-
-import pandas as pds
 try:
     from libgoods import maps, api
 except ImportError:
-    print("libgoods package not available -- its functionality will not be there")
+    print("libgoods package not available "
+          "-- its functionality will not be there")
+
+from dask.callbacks import Callback
+from timeit import default_timer
 
 
-from .. import supported_ocean_models, supported_met_models
+log = logging.getLogger(__name__)
 
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
@@ -83,20 +72,22 @@ def get_model_metadata(request):
     model_source = request.GET.get('model_source', None)
     request_type = request.GET.get('request_type')
     try:
-        if any(cur in request_type for cur in ('surface currents', '3D currents')):
+        if any(cur in request_type for cur in ('surface currents',
+                                               '3D currents')):
             supported_env_models = supported_ocean_models
         elif 'surface winds' in request_type:
             supported_env_models = supported_met_models
         else:
             supported_env_models = {}
     except TypeError:
-        supported_env_models = {**supported_ocean_models, **supported_met_models}
+        supported_env_models = {**supported_ocean_models,
+                                **supported_met_models}
     retval = None
-    #model_list = list(supported_env_models.keys())
+    # model_list = list(supported_env_models.keys())
     if bounds:
         bounds = ujson.loads(bounds)
     if model_id:
-        mdl = api.get_model_info(model_id,model_source)
+        mdl = api.get_model_info(model_id, model_source)
         return mdl
     else:
         retval = api.list_models(
@@ -179,8 +170,7 @@ def create_goods_request(request):
     Uses the payload passed by the client to send information to
     libGOODS. This file returned from libgoods is then used to create a
     CurrentMover object, which is then returned to the client
-    '''
-    '''
+
     class FetchConfig:
         """Configuration data class for fetching."""
 
@@ -199,48 +189,59 @@ def create_goods_request(request):
 
     params = request.POST
     upload_dir = os.path.relpath(get_session_dir(request))
-    max_upload_size = eval(request.registry.settings['max_upload_size'])
+    _max_upload_size = eval(request.registry.settings['max_upload_size'])
     bounds = (float(params['WestLon']), float(params['SouthLat']),
               float(params['EastLon']), float(params['NorthLat']))
-    surface_only = params.get('surface_only', True) not in ('false', 'False', None)
+    surface_only = params.get('surface_only', True) not in ('false',
+                                                            'False',
+                                                            None)
     cross_dateline = params['cross_dateline'] in ('Yes',)
     request_type = params['request_type']
     tshift = params['tshift']
 
-    include_winds = params.get('include_winds', True) not in ('false', 'False', None)
+    include_winds = params.get('include_winds', True) not in ('false',
+                                                              'False',
+                                                              None)
     if include_winds:
         request_type = [request_type, 'surface winds']
 
-    #generate a unique model output name
+    # generate a unique model output name
     start = params['start_time']
     end = params['end_time']
-    fname = params['model_name'] + '_' + start.split('T')[0] + '_' + end.split('T')[0] + '.nc'
-    file_name, unique_name = gen_unique_filename(fname, upload_dir)
+
+    fname = '{}_{}_{}.nc'.format(params['model_name'],
+                                 start.split("T")[0],
+                                 end.split("T")[0])
+
+    _file_name, unique_name = gen_unique_filename(fname, upload_dir)
     output_path = os.path.join(upload_dir, unique_name)
-    with open(output_path,'w') as fn:
+
+    with open(output_path, 'w') as _fn:
+        # FIXME: not sure what this does.
         pass
-    source=params.get('source')
+
+    source = params.get('source')
 
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
 
     goods_req = GOODSRequest(start_time=datetime.datetime.now(),
-                                  request_id=request_id,
-                                  filename=unique_name,
-                                  outpath=output_path,
-                                  request_type=request_type,
-                                  request_args={
-                                      'model_id':params['model_name'],
-                                      'model_source':source,
-                                      'start':start,
-                                      'end':end,
-                                      'bounds':bounds,
-                                      'surface_only':surface_only,
-                                      'cross_dateline':cross_dateline,
-                                      'environmental_parameters':request_type,
-                                  },
-                                  tshift=tshift,
-                                  _debug = False)
+                             request_id=request_id,
+                             filename=unique_name,
+                             outpath=output_path,
+                             request_type=request_type,
+                             request_args={
+                                 'model_id': params['model_name'],
+                                 'model_source': source,
+                                 'start': start,
+                                 'end': end,
+                                 'bounds': bounds,
+                                 'surface_only': surface_only,
+                                 'cross_dateline': cross_dateline,
+                                 'environmental_parameters': request_type,
+                             },
+                             tshift=tshift,
+                             _debug=False)
 
     session_objs[request_id] = goods_req
     goods_req.start()
@@ -255,7 +256,10 @@ def goods_request(request):
     returns the updated request object
     '''
 
-    log_prefix = 'req{0}: interact_request() {1}'.format(id(request), request.POST.get('command', 'NO COMMAND'))
+    log_prefix = 'req{0}: interact_request() {1}'.format(
+        id(request),
+        request.POST.get('command', 'NO COMMAND')
+    )
     log.info('>>' + log_prefix)
 
     params = request.POST
@@ -263,7 +267,7 @@ def goods_request(request):
 
     req_id = session_objs = req_obj = None
     if command != 'create':
-        req_id = params.get('request_id',None)
+        req_id = params.get('request_id', None)
         session_objs = get_session_objects(request)
         req_obj = session_objs.get(req_id, None)
 
@@ -285,16 +289,16 @@ def goods_request(request):
 
     elif command == 'outpath':
         if req_obj.state != 'finished':
-            raise ValueError('Request {0} is not finished'.format(req_obj.request_id))
+            raise ValueError(f'Request {req_obj.request_id} is not finished')
         else:
             return req_obj.outpath
 
     elif command == 'cleanup':
-        #if for some reason the client wants to wipe one or all requests
+        # if for some reason the client wants to wipe one or all requests
         if req_id == 'all':
             for obj in session_objs.values():
                 if isinstance(obj, GOODSRequest):
-                    log.info('Batch-remove GOODS request {0}'.format(obj.request_id))
+                    log.info(f'Batch-remove GOODS request {obj.request_id}')
                     session_objs[obj.request_id].dead()
                     del session_objs[obj.request_id]
         else:
@@ -305,28 +309,30 @@ def goods_request(request):
             del session_objs[obj.request_id]
 
     else:
-        raise ValueError('Unrecognized command ({0}) to goods_request interface'.format(command))
+        raise ValueError(f'Unrecognized command ({command}) '
+                         'to goods_request interface')
 
 
 @goods_requests.get()
 def get_goods_requests(request):
     '''
-    If the client needs to request all currently open GOODS requests this is the function
-    that handles it.
+    If the client needs to request all currently open GOODS requests,
+    this is the function that handles it.
 
     returns to the client a jsonified list of GOODSRequest objects
     '''
-
-    #log_prefix = 'req{0}: get_currents()'.format(id(request))
-    #log.info('>>' + log_prefix)
+    # log_prefix = 'req{0}: get_currents()'.format(id(request))
+    # log.info('>>' + log_prefix)
     session_objs = get_session_objects(request)
 
     params = request.GET
     if params.get('id', None) and params['id'] in session_objs:
-        #if GET is provided a single request_id, it will return only that request
+        # if GET is provided a single request_id,
+        # it will return only that request
         return session_objs['request_id'].to_response()
 
-    all_requests = [v for k, v in session_objs.items() if isinstance(v, GOODSRequest)]
+    all_requests = [v for _k, v in session_objs.items()
+                    if isinstance(v, GOODSRequest)]
     open_requests = [r for r in all_requests if r.state != 'dead']
 
     typ = request.GET.get('request_type', None)
@@ -336,11 +342,12 @@ def get_goods_requests(request):
     else:
         rv = [r.to_response() for r in open_requests]
 
-    for idx, r in enumerate(open_requests):
-        log.info('>>>>>Req' + r.request_id + ' subset ' + str(r.subset_process.is_alive()))
+    for _idx, r in enumerate(open_requests):
+        log.info('>>>>>'
+                 f'Req {r.request_id} '
+                 f'subset {r.subset_process.is_alive()}')
+
     return rv
-
-
 
 
 class GOODSRequest(object):
@@ -350,9 +357,10 @@ class GOODSRequest(object):
     This object is intended to be created inside a request handler and put into
     the session objects dict. This provides management and persistence.
 
-    This object has 6 primary states: 'preparing', 'subsetting', 'requesting', 'too_large', 'error', and 'dead'.
-    It is initialized in the 'preparing' state, and goes to the 'subsetting' state after
-    calling the relevant method.
+    This object has 6 primary states: 'preparing', 'subsetting', 'requesting',
+    'too_large', 'error', and 'dead'.
+    It is initialized in the 'preparing' state, and goes to the
+    'subsetting' state after calling the relevant method.
     '''
     def __init__(self,
                  request_id=None,
@@ -363,7 +371,7 @@ class GOODSRequest(object):
                  outpath=None,
                  tshift=0,
                  _debug=False,
-                 _max_size=100000000, #100 MB
+                 _max_size=100000000,  # 100 MB
                  _reconfirm_timeout=300,
                  ):
         '''
@@ -373,7 +381,7 @@ class GOODSRequest(object):
             start_time = datetime.datetime.now()
         self.start_time = start_time
         self.request_id = request_id
-        self.request_type = request_type #'currents' or 'winds'
+        self.request_type = request_type  # 'currents' or 'winds'
         self.request_args = request_args
         self.state = 'preparing'
         self.request_greenlet = None
@@ -385,26 +393,32 @@ class GOODSRequest(object):
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
         self.time_elapsed = 0
-        self.message = None #set by worker thread
+        self.message = None  # set by worker thread
         self.request_process = None
-        self.pause_event = threading.Event() #lock for main thread to clear on reconfirmation
-        self.cancel_event = threading.Event() #event for main thread to set if cancellation desired
         self.cancel_event.clear()
-        self.complete_event = threading.Event() #event for worker thread to set when request is complete
         self.complete_event.clear()
+
+        # lock for main thread to clear on reconfirmation
+        self.pause_event = threading.Event()
+
+        # event for main thread to set if cancellation desired
+        self.cancel_event = threading.Event()
+
+        # event for worker thread to set when request is complete
+        self.complete_event = threading.Event()
 
     def to_response(self):
         return {'start_time': self.start_time.isoformat(),
-               'request_id': self.request_id, #GOODSRequest do not have an 'id' as a distinction from GnomeId
-               'id': self.request_id, #'id' specifically needed by Backbone.Collection so merging works right
-               'request_type': self.request_type,
-               'filename': self.filename,
-               'state': self.state,
-               'size': self.subset_size,
-               'time_elapsed': self.time_elapsed,
-               'message': repr(self.message),
-               'outpath': self.outpath,
-               'tshift': self.tshift}
+                'request_id': self.request_id,  # GOODSRequest do not have an 'id' as a distinction from GnomeId
+                'id': self.request_id,  # 'id' specifically needed by Backbone.Collection so merging works right
+                'request_type': self.request_type,
+                'filename': self.filename,
+                'state': self.state,
+                'size': self.subset_size,
+                'time_elapsed': self.time_elapsed,
+                'message': str(self.message),
+                'outpath': self.outpath,
+                'tshift': self.tshift}
 
     @property
     def subset_xr(self):
@@ -424,7 +438,8 @@ class GOODSRequest(object):
         logger = multiprocessing.log_to_stderr()
         logger.setLevel(multiprocessing.SUBDEBUG)
         if self.state != 'preparing':
-            msg = 'Subset operation {0} already started or completed'.format(self.request_id)
+            msg = (f'Subset operation {self.request_id} '
+                   'already started or completed')
             log.error(msg)
             return msg
         self.state = 'subsetting'
@@ -441,7 +456,9 @@ class GOODSRequest(object):
 
     def _thread_request_func(self, request_args, logger, mq):
         logger.info('START')
-        self.subset_process = Process(target=subset_process_func, args=(request_args, mq), daemon=True)
+        self.subset_process = Process(target=subset_process_func,
+                                      args=(request_args, mq),
+                                      daemon=True)
         self.subset_process.start()
         if (not mq.get(timeout=30)):
             self.error('Subset startup failed')
@@ -450,7 +467,7 @@ class GOODSRequest(object):
         msg = '0 sec'
         counter = 0
         timeout = 180
-        while counter < timeout: # 3 minutes until loop times out
+        while counter < timeout:  # 3 minutes until loop times out
             logger.info('SUBSET PROGESS: ' + msg)
             try:
                 msg = mq.get(timeout=2)
@@ -473,13 +490,16 @@ class GOODSRequest(object):
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
-        if self.subset_process.exitcode is None and counter >= timeout: #process still running, so timeout exceeded
-            logger.error('Failed subset for {0} due to timeout'.format(request_args['request_id']))
+        if self.subset_process.exitcode is None and counter >= timeout:
+            # process still running, so timeout exceeded
+            logger.error(f'Failed subset for {request_args["request_id"]} '
+                         'due to timeout')
             self.error('subset_timeout')
             self.cancel_request()
             return
         elif self.subset_process.exitcode or status == 'error':
-            logger.info('SUBSET FAILED: exitcode: ' + str(self.subset_process.exitcode))
+            logger.info('SUBSET FAILED: '
+                        f'exitcode: {self.subset_process.exitcode}')
             self.error(result)
             return
         if status:
@@ -491,7 +511,7 @@ class GOODSRequest(object):
             self.message = status
             self.error(result)
 
-        self._subset_finished=True
+        self._subset_finished = True
         self.percent = 0
         self.subset_size = self._subset_xr.nbytes
         if self.subset_size > self._max_size:
@@ -501,11 +521,13 @@ class GOODSRequest(object):
             self.message = 'Cancelled'
             return
         self.state = 'requesting'
-        self.request_process = Process(target=api.get_model_output, args=(self._subset_xr, self.outpath))
+        self.request_process = Process(target=api.get_model_output,
+                                       args=(self._subset_xr, self.outpath))
         self.request_process.start()
-        self.request_process.join(600) #10 minute request timeout
+        self.request_process.join(600)  # 10 minute request timeout
         if self.request_process.exitcode:
-            logger.info('REQUEST FAILED: exitcode ' + str(self.request_process.exitcode))
+            logger.info('REQUEST FAILED: '
+                        f'exitcode: {self.request_process.exitcode}')
         logger.info('REQUEST COMPLETE')
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
@@ -519,12 +541,12 @@ class GOODSRequest(object):
     def too_large(self):
         size = self._subset_xr.nbytes
         self.state = 'too_large'
-        self.message = 'Subset size is very large ({0}). Reconfirm required.'.format(size)
+        self.message = (f'Subset size is very large ({size}). '
+                        'Reconfirm required.')
         self.pause_event.clear()
         if not self.pause_event.wait(timeout=self._reconfirm_timeout):
             self.dead()
             return
-
 
     def error(self, msg):
         self.state = 'error'
@@ -533,7 +555,7 @@ class GOODSRequest(object):
     def reconfirm(self):
         if self.state == 'too_large':
             self.state = 'subsetting'
-        self.pause_event.set() #releases the waiting request thread
+        self.pause_event.set()  # releases the waiting request thread
 
     def dead(self):
         self.cancel_request()
@@ -567,9 +589,6 @@ class GOODSRequest(object):
             api.get_model_output(subs, self.outpath)
 
 
-
-from dask.callbacks import Callback
-from timeit import default_timer
 class Tracker(Callback):
     def __init__(self, model, dt=1, timeout=60):
         self.dt = 1
@@ -611,21 +630,23 @@ class Tracker(Callback):
 
     def _update(self, elapsed):
         s = self.state
-        if not s: #tracker was not attached to dask correctly
+        if not s:  # tracker was not attached to dask correctly
             self.model.percent = 0
             return
         ndone = len(s["finished"])
-        ntasks = sum(len(s[k]) for k in ["ready", "waiting", "running"]) + ndone
+        ntasks = sum(len(s[k])
+                     for k in ["ready", "waiting", "running"]) + ndone
         pct = int(ndone / ntasks if ntasks else 0)
 
         if ndone < ntasks:
             self.model.percent = pct
             self.model.elapsed = elapsed
 
+
 def subset_process_func(request_args, mq):
-    mq.put('startup') #startup sync message
+    mq.put('startup')  # startup sync message
     try:
-        #raise ValueError('test error')
+        # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
         mq.put('success')
         mq.put(pickle.dumps(result))

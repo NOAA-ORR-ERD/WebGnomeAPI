@@ -278,7 +278,7 @@ def switch_to_existing_session(request):
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
+                                  new_session_id_func=get_specific_session_id)
 
         if request.session.session_id != redis_session_id:
             raise cors_response(request,
@@ -289,7 +289,7 @@ def switch_to_existing_session(request):
 
 def process_upload(request, field_name):
     # For some reason, the multipart form does not contain
-    # a session cookie, and Nathan so far has not been able to explicitly
+    # a session cookie, and Naomi so far has not been able to explicitly
     # set it.  So a workaround is to put the session ID in the form as
     # hidden POST content.
     # Then we can re-establish our session with the request after
@@ -303,7 +303,7 @@ def process_upload(request, field_name):
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
+                                  new_session_id_func=get_specific_session_id)
 
         if request.session.session_id != redis_session_id:
             raise cors_response(request,

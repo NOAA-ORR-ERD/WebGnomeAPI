@@ -179,7 +179,7 @@ def process_upload(request):
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
+                                  new_session_id_func=get_specific_session_id)
 
         if request.session.session_id != redis_session_id:
             raise cors_response(request, HTTPBadRequest(
