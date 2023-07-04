@@ -67,6 +67,12 @@ test_src:
 
     - python setup.py compilejson
     - pytest webgnome_api/tests
+    - conda list > conda_packages.txt
+  artifacts:
+    when: always
+    expire_in: 15 days
+    paths:
+      - ./conda_packages.txt
 
 build_temp_img:
   stage: build_temp_img
