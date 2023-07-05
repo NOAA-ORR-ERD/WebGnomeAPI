@@ -22,7 +22,7 @@ python>=3.9,<3.11
 numpy
 regex
 awesome-slugify
-pyramid<=2
+pyramid>=2,<3
 paste
 pastedeploy>=2.0
 pyramid_log
