@@ -35,7 +35,8 @@ from webgnome_api.common.views import (can_persist,
                                        cors_exception,
                                        cors_policy,
                                        cors_response,
-                                       cors_file_response)
+                                       cors_file_response,
+                                       switch_to_existing_session)
 from webgnome_api.common.session_management import (get_registered_file)
 
 log = logging.getLogger(__name__)
@@ -170,23 +171,7 @@ def process_upload(request):
     returns an in-order list full paths to the file and an in-order list of
     the basename of the file
     '''
-    redis_session_id = request.POST['session']
-
-    if redis_session_id in list(request.session.redis.keys()):
-        def get_specific_session_id(_redis, _timeout, _serialize, _generator,
-                                    session_id=redis_session_id):
-            return session_id
-
-        factory = request.registry.queryUtility(ISessionFactory)
-        request.session = factory(request,
-                                  new_session_id_func=get_specific_session_id)
-
-        if request.session.session_id != redis_session_id:
-            raise cors_response(request, HTTPBadRequest(
-                'multipart form request '
-                'could not re-establish session'
-            ))
-
+    switch_to_existing_session(request)
     upload_dir = os.path.relpath(get_session_dir(request))
     max_upload_size = eval(request.registry.settings['max_upload_size'])
 
