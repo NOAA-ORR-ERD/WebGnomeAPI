@@ -168,10 +168,4 @@ def unregister_exportable_file(request, basename):
 
 
 def get_registered_file(request, basename):
-    session = request.session
-    retval = None
-
-    if 'registered_files' in session:
-        retval = session['registered_files'].get(basename, None)
-
-    return retval
+    return request.session.get('registered_files', {}).get(basename, None)

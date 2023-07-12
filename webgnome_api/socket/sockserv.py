@@ -55,7 +55,8 @@ class WebgnomeNamespace(socketio.Namespace):
         # Case for this situation needs to be added.
         # old environ contains old, invalid session_id, this is the problem
         # websocket connection is actually still successful?
-        session_id = [s for s in environ['QUERY_STRING'].split('&') if 'session_id' in s][0]
+        session_id = [s for s in environ['QUERY_STRING'].split('&')
+                      if 'session_id' in s][0]
         session_id = session_id.split('=')[1]
 
         if session_id not in self.server.app.registry.settings['objects']:
@@ -242,7 +243,8 @@ class GoodsFileNamespace(socketio.Namespace):
         # Case for this situation needs to be added.
         # old environ contains old, invalid session_id, this is the problem
         # websocket connection is actually still successful?
-        session_id = [s for s in environ['QUERY_STRING'].split('&') if 'session_id' in s][0]
+        session_id = [s for s in environ['QUERY_STRING'].split('&')
+                      if 'session_id' in s][0]
         session_id = session_id.split('=')[1]
 
         if session_id not in self.server.app.registry.settings['objects']:
@@ -261,14 +263,15 @@ class GoodsFileNamespace(socketio.Namespace):
             'request_id': None,
             'object': None,
         })
-    
+
         return True
 
     def on_register(self, sid, request_id):
         '''
-        When the client gets the list of request objects from the server, it must
-        then communicate back with the socketio side per object to set up the connection
-        the register function associates a (potentially new) session with the correct object
+        When the client gets the list of request objects from the server,
+        it must then communicate back with the socketio side per object
+        to set up the connection the register function associates a
+        (potentially new) session with the correct object
         '''
         with self.session(sid) as sock_session:
             sock_session['request_id'] = request_id
@@ -282,20 +285,20 @@ class GoodsFileNamespace(socketio.Namespace):
         with self.session(sid) as sock_session:
             if not sock_session:
                 return "session_not_found"
-    
+
     def on_start_request(self, sid, request_id):
         with self.session(sid) as sock_session:
             req_obj = sock_session['object']
             req_obj.start_subset()
-            self.emit('request_started', req_obj.start_time.isoformat(), room=sid)
+            self.emit('request_started', req_obj.start_time.isoformat(),
+                      room=sid)
 
     def on_terminate_request(self, sid, request_id):
         request_object = self.get_request_object(sid, request_id)
         request_object.terminate_with_error('Client requested kill')
-        #trigger kill on request object
+        # trigger kill on request object
         self.emit('terminated_request', request_id)
 
     def get_request_object(sid, request_id):
         with self.session(sid) as sock_session:
             return sock_session['objects'][request_id]
-    
