@@ -395,8 +395,6 @@ class GOODSRequest(object):
         self.time_elapsed = 0
         self.message = None  # set by worker thread
         self.request_process = None
-        self.cancel_event.clear()
-        self.complete_event.clear()
 
         # lock for main thread to clear on reconfirmation
         self.pause_event = threading.Event()
