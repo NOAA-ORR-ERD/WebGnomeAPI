@@ -21,7 +21,7 @@ def get_info(request):
         if isinstance(l_session.session_id, LazyCreateSession):
             l_session.ensure_id()
             l_session['active_model'] = {}
-            l_session.changed()
+            l_session.do_persist()
 
         init_session_objects(request, force=False)
 
