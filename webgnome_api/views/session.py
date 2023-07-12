@@ -14,17 +14,17 @@ session = Service(name='session', path='/session',
 @session.post()
 def get_info(request):
     if hasattr(request, 'session'):
-        l_session = request.session
+        session = request.session
 
-        l_session.redis.config_set("notify-keyspace-events", "Ex")
+        session.redis.config_set("notify-keyspace-events", "Ex")
 
-        if isinstance(l_session.session_id, LazyCreateSession):
-            l_session.ensure_id()
-            l_session['active_model'] = {}
-            l_session.changed()
+        if isinstance(session.session_id, LazyCreateSession):
+            session.ensure_id()
+            session['active_model'] = {}
+            session.do_persist()
 
         init_session_objects(request, force=False)
 
-        return {'id': l_session.session_id}
+        return {'id': session.session_id}
     else:
         return {'id': None}
