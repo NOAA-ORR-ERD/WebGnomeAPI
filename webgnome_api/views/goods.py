@@ -481,8 +481,8 @@ class GOODSRequest(object):
                 self.time_elapsed = counter
         status = msg
         logger.info('Joining subset process')
+        result = pickle.loads(mq.get(timeout=60))
         self.subset_process.join()
-        result = mq.get()
         logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
@@ -503,7 +503,7 @@ class GOODSRequest(object):
         if status:
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
-            self._subset_xr = pickle.loads(result)
+            self._subset_xr = result
             logger.info(str(self._subset_xr))
         else:
             self.message = status
