@@ -80,7 +80,7 @@ class WebgnomeFormatter(Formatter):
             else:
                 request = get_current_request()
 
-                if request is not None:
+                if request is not None and hasattr(request, 'session_hash'):
                     record.session_hash = request.session_hash
 
         # magic_record.__dict__ support dotted attribute lookup
