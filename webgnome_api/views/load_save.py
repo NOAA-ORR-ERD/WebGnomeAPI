@@ -60,6 +60,7 @@ def upload_model(request):
     '''
     clean_session_dir(request)
     file_path, _name = process_upload(request, 'new_model')
+
     # Now that we have our file, we will now try to load the model into
     # memory.
     # Now that we have our file, is it a zipfile?

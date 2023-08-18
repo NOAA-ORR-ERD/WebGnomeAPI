@@ -298,12 +298,14 @@ def process_upload(request, field_name):
 
     if redis_session_id.encode('utf-8') in list(request.session.redis.keys()):
         def get_specific_session_id(redis, timeout, serialize, generator,
-                                    session_id=redis_session_id):
+                                    session_id=redis_session_id,
+                                    **kwargs):
             return session_id
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
                                   new_session_id_func=get_specific_session_id)
+        request.session.do_persist()
 
         if request.session.session_id != redis_session_id:
             raise cors_response(request,
