@@ -546,7 +546,7 @@ class GOODSRequest(object):
         self.state = 'finished'
         self.percent = 100
         self.complete_event.set()
-        logger.close()
+        #logger.close()
 
     def too_large(self):
         size = self._subset_xr.nbytes
