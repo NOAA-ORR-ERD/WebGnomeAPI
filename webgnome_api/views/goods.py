@@ -514,7 +514,7 @@ class GOODSRequest(object):
         if status:
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
-            self._subset_xr = pickle.loads(result)
+            self._subset_xr = result 
             logger.info(str(self._subset_xr))
         else:
             self.message = status
@@ -672,7 +672,7 @@ def subset_process_func(request_args, mq):
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
         mq.put('success')
-        mq.put(pickle.dumps(result))
+        mq.put(result)
         mq.close()
         mq.join_thread()
     except Exception as e:
