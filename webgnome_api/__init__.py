@@ -53,7 +53,6 @@ supported_ocean_models = {
     'TBOFS': 'ioos-forecast-agg',
     # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
     'GOMOFS': 'ioos-forecast-agg',
-    
 }
 
 
