@@ -44,7 +44,7 @@ supported_ocean_models = {
     'LMHOFS_RGRID': 'ioos-forecast-agg',
     'CIOFS': 'ioos-forecast-agg',
     # 'LSOFS': 'coops-forecast-agg',
-    'LSOFS_RGRID':, 'ioos-forecast-agg',
+    'LSOFS_RGRID': 'ioos-forecast-agg',
     'CBOFS': 'ioos-forecast-agg',
     # 'LEOFS': 'coops-forecast-noagg',
     'LEOFS_RGRID': 'ioos-forecast-agg',
