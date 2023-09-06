@@ -34,30 +34,26 @@ __version__ = "0.9"
 logging.basicConfig()
 
 supported_ocean_models = {
-    # 'GFS-1_4DEG',
     # 'RTOFS-GLOBAL',
-    # 'RTOFS-GLOBAL_2D',
-    # 'GFS-1_2DEG',
-    # 'GFS-1DEG',
     'GOFS': 'hycom-forecast-agg',
-    # 'RTOFS-ALASKA',
-    # 'RTOFS-WEST',
-    # 'RTOFS-EAST',
     'WCOFS': 'ioos-forecast-agg',
     'NGOFS2_RGRID': 'ioos-forecast-agg',
     # 'CREOFS': 'coops-forecast-noagg',
+    'CREOFS_RGRID': 'ioos-forecast-agg',
     # 'LMHOFS': 'coops-forecast-noagg',
     'CIOFS': 'ioos-forecast-agg',
     # 'LSOFS': 'coops-forecast-agg',
     'CBOFS': 'ioos-forecast-agg',
     # 'LEOFS': 'coops-forecast-noagg',
+    'LEOFS_RGRID': 'ioos-forecast-agg',
     'DBOFS': 'ioos-forecast-agg',
     # 'LOOFS': 'coops-forecast-agg',
     # 'SFBOFS': 'coops-forecast-noagg',
+    'SFBOFS_RGRID': 'ioos-forecast-agg',
     'TBOFS': 'ioos-forecast-agg',
     # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
     'GOMOFS': 'ioos-forecast-agg',
-    'CREOFS_RGRID': 'ioos-forecast-agg',
+    
 }
 
 
