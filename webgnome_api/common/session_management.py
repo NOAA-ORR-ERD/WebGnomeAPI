@@ -48,6 +48,7 @@ def init_session_objects(request, force=False):
         obj_pool[session.session_id] = {}
 
     objects = obj_pool[session.session_id]
+
     if 'gnome_session_lock' not in objects:
         objects['gnome_session_lock'] = Lock()
 

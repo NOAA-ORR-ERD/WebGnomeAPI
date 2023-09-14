@@ -191,6 +191,7 @@ def process_upload(request):
     the basename of the file
     '''
     switch_to_existing_session(request)
+
     upload_dir = os.path.relpath(get_session_dir(request))
     max_upload_size = eval(request.registry.settings['max_upload_size'])
 
@@ -201,11 +202,11 @@ def process_upload(request):
     else:
         can_persist = False
 
-    log.info(f'save_file_dir: {upload_dir}')
-    log.info(f'max_upload_size: {max_upload_size}')
+    log.info(f'{upload_dir=}')
+    log.info(f'{max_upload_size=}')
 
-    log.info(f'persist_upload?: {persist_upload}')
-    log.info(f'can_persist?: {can_persist}')
+    log.info(f'{persist_upload=}')
+    log.info(f'{can_persist=}')
 
     # for each file, process into server
     input_file = request.POST['file'].file

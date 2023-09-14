@@ -299,6 +299,6 @@ class GoodsFileNamespace(socketio.Namespace):
         # trigger kill on request object
         self.emit('terminated_request', request_id)
 
-    def get_request_object(sid, request_id):
+    def get_request_object(self, sid, request_id):
         with self.session(sid) as sock_session:
             return sock_session['objects'][request_id]
