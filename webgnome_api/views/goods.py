@@ -224,7 +224,6 @@ def create_goods_request(request):
 
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
-
     goods_req = GOODSRequest(start_time=datetime.datetime.now(),
                              request_id=request_id,
                              filename=unique_name,
