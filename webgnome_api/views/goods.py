@@ -216,15 +216,12 @@ def create_goods_request(request):
     _file_name, unique_name = gen_unique_filename(fname, upload_dir)
     output_path = os.path.join(upload_dir, unique_name)
 
-    with open(output_path, 'w') as _fn:
-        # FIXME: not sure what this does.
-        pass
-
     source = params.get('source')
 
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
     goods_req = GOODSRequest(start_time=datetime.datetime.now(),
+                             orig_request=request,
                              request_id=request_id,
                              filename=unique_name,
                              outpath=output_path,
@@ -365,8 +362,10 @@ class GOODSRequest(object):
     It is initialized in the 'preparing' state, and goes to the
     'subsetting' state after calling the relevant method.
     '''
+    logger = multiprocessing.log_to_stderr()
     def __init__(self,
                  request_id=None,
+                 orig_request=None,
                  start_time=None,
                  request_type=None,
                  request_args=None,
@@ -384,6 +383,7 @@ class GOODSRequest(object):
             start_time = datetime.datetime.now()
         self.start_time = start_time
         self.request_id = request_id
+        self.orig_request = orig_request
         self.request_type = request_type  # 'currents' or 'winds'
         self.request_args = request_args
         self.subset_size = None
@@ -393,7 +393,7 @@ class GOODSRequest(object):
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
-        self.logger = multiprocessing.log_to_stderr()
+        self.logger = self.__class__.logger
         
         #Communication attributes (should be reset if request retried)
         self.message = None  # set by worker thread
@@ -544,6 +544,7 @@ class GOODSRequest(object):
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
+        register_exportable_file(self.orig_request, self.filename, self.outpath)
         self.complete_event.set()
         #logger.close()
 
