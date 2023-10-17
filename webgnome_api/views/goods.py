@@ -44,8 +44,8 @@ log = logging.getLogger(__name__)
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
 
-goods_currents = Service(name='currents', path='/goods/currents*',
-                         description="GOODS CURRENTS API",
+goods_validation = Service(name='validation', path='/goods/validation*',
+                         description="GOODS SUBSET VALIDATION API",
                          cors_policy=cors_policy)
 
 goods_list_models = Service(name='list_models', path='/goods/list_models*',
@@ -96,6 +96,28 @@ def get_model_metadata(request):
             env_params=ujson.loads(request_type),
             as_pyson=True,
             )
+    return retval
+    
+@goods_validation.get()
+def validate_subset(request):
+    '''
+   
+    map_bounds is a polygon as a list of lon, lat pairs
+    '''
+    bounds = request.GET.get('map_bounds', None)
+    start = request.GET.get('start_time',None)
+    end = request.GET.get('end_time',None)
+    model_id = request.GET.get('model_id', None)
+    model_source = request.GET.get('model_source', None)
+
+    retval = api.validate_subset(
+        model_id,
+        model_source,
+        start,
+        end,
+        bounds
+        )
+        
     return retval
 
 
