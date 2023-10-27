@@ -30,15 +30,14 @@ export = Service(name='export', path='/export*',
 
 @view_config(route_name='export', request_method='GET')
 def download_file(request):
-    log_prefix = 'req({0}): download_file():'.format(id(request))
-    log.info('>>' + log_prefix)
+    log_prefix = f'req({id(request)}): download_file():'
+    log.info(f'>> {log_prefix}')
 
     session_path = get_session_dir(request)
     file_path = sep.join(map(str, request.matchdict['file_path']))
     output_path = join(session_path, file_path)
 
-    log.info('  {} output_path: {}'
-             .format(log_prefix, output_path))
+    log.info(f'  {log_prefix} output_path: {output_path}')
 
     try:
         model_name = get_active_model(request).name

@@ -52,16 +52,15 @@ def substance_upload_options(request):
 @view_config(route_name='substance_upload', request_method='POST')
 def upload_substance(request):
     switch_to_existing_session(request)
-    log_prefix = 'req({0}): upload_substance():'.format(id(request))
-    log.info('>>{}'.format(log_prefix))
+    log_prefix = f'req({id(request)}): upload_substance():'
+    log.info(f'>>{log_prefix}')
 
     file_list = request.POST.pop('file_list')
     file_list = ujson.loads(file_list)
     name = request.POST.pop('name')
     file_name = file_list[0]
 
-    log.info('  {} file_name: {}, name: {}'
-             .format(log_prefix, file_name, name))
+    log.info(f'  {log_prefix} {file_name=}, {name=}')
 
     substance_type = request.POST.pop('obj_type', [])
 
@@ -76,5 +75,5 @@ def upload_substance(request):
     substance_obj = create_substance(request)
     resp = Response(ujson.dumps(substance_obj))
 
-    log.info('<<{}'.format(log_prefix))
+    log.info(f'<<{log_prefix}')
     return cors_response(request, resp)

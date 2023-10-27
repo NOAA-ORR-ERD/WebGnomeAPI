@@ -1,10 +1,13 @@
 """
 Common Gnome object request handlers.
 """
+import logging
 from threading import Lock
 
 from pyramid_session_redis.util import LazyCreateSession
 from pyramid.httpexceptions import HTTPException
+
+log = logging.getLogger(__name__)
 
 
 def req_session_is_valid(funct):
@@ -45,6 +48,7 @@ def init_session_objects(request, force=False):
         obj_pool[session.session_id] = {}
 
     objects = obj_pool[session.session_id]
+
     if 'gnome_session_lock' not in objects:
         objects['gnome_session_lock'] = Lock()
 
@@ -85,7 +89,7 @@ def set_active_model(request, obj_id):
     if not ('active_model' in session and
             session['active_model'] == obj_id):
         session['active_model'] = obj_id
-        session.changed()
+        session.do_persist()
 
 
 def get_active_model(request):
@@ -138,16 +142,21 @@ def drop_uncertain_models(request):
 
 def register_exportable_file(request, basename, filepath):
     session = request.session
+
     if 'registered_files' not in session:
         session['registered_files'] = {}
+
     file_reg = session['registered_files']
     file_reg[basename] = filepath
+
     session['registered_files'] = file_reg
+    session.do_persist()
 
 
 def clear_exportable_files(request):
     session = request.session
     session['registered_files'] = {}
+    session.do_persist()
 
 
 def unregister_exportable_file(request, basename):
@@ -156,11 +165,8 @@ def unregister_exportable_file(request, basename):
     if ('registered_files' in session and
             basename in session['registered_files']):
         del session['registered_files'][basename]
+        session.do_persist()
 
 
 def get_registered_file(request, basename):
-    session = request.session
-    retval = None
-    if 'registered_files' in session:
-        retval = session['registered_files'].get(basename, None)
-    return retval
+    return request.session.get('registered_files', {}).get(basename, None)

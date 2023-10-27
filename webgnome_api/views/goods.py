@@ -44,8 +44,8 @@ log = logging.getLogger(__name__)
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
 
-goods_currents = Service(name='currents', path='/goods/currents*',
-                         description="GOODS CURRENTS API",
+goods_validation = Service(name='validation', path='/goods/validation*',
+                         description="GOODS SUBSET VALIDATION API",
                          cors_policy=cors_policy)
 
 goods_list_models = Service(name='list_models', path='/goods/list_models*',
@@ -96,6 +96,28 @@ def get_model_metadata(request):
             env_params=ujson.loads(request_type),
             as_pyson=True,
             )
+    return retval
+    
+@goods_validation.get()
+def validate_subset(request):
+    '''
+   
+    map_bounds is a polygon as a list of lon, lat pairs
+    '''
+    bounds = request.GET.get('map_bounds', None)
+    start = request.GET.get('start_time',None)
+    end = request.GET.get('end_time',None)
+    model_id = request.GET.get('model_id', None)
+    model_source = request.GET.get('model_source', None)
+
+    retval = api.validate_subset(
+        model_id,
+        model_source,
+        start,
+        end,
+        bounds
+        )
+        
     return retval
 
 
@@ -216,16 +238,12 @@ def create_goods_request(request):
     _file_name, unique_name = gen_unique_filename(fname, upload_dir)
     output_path = os.path.join(upload_dir, unique_name)
 
-    with open(output_path, 'w') as _fn:
-        # FIXME: not sure what this does.
-        pass
-
     source = params.get('source')
 
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
-
     goods_req = GOODSRequest(start_time=datetime.datetime.now(),
+                             orig_request=request,
                              request_id=request_id,
                              filename=unique_name,
                              outpath=output_path,
@@ -277,6 +295,10 @@ def goods_request(request):
 
     elif command == 'cancel':
         req_obj.cancel_request()
+        return req_obj.to_response()
+    
+    elif command == 'retry':
+        req_obj.retry_request()
         return req_obj.to_response()
 
     elif command == 'reconfirm':
@@ -362,8 +384,10 @@ class GOODSRequest(object):
     It is initialized in the 'preparing' state, and goes to the
     'subsetting' state after calling the relevant method.
     '''
+    logger = multiprocessing.log_to_stderr()
     def __init__(self,
                  request_id=None,
+                 orig_request=None,
                  start_time=None,
                  request_type=None,
                  request_args=None,
@@ -381,23 +405,27 @@ class GOODSRequest(object):
             start_time = datetime.datetime.now()
         self.start_time = start_time
         self.request_id = request_id
+        self.orig_request = orig_request
         self.request_type = request_type  # 'currents' or 'winds'
         self.request_args = request_args
-        self.state = 'preparing'
-        self.request_greenlet = None
         self.subset_size = None
         self.filename = filename
         self.outpath = outpath
-        self.tshift = int(tshift)
+        self.tshift = int(tshift) #timezone shift retained for future use by webgnomeapi
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
-        self.time_elapsed = 0
+        self.logger = self.__class__.logger
+        
+        #Communication attributes (should be reset if request retried)
         self.message = None  # set by worker thread
-        self.request_process = None
-        self.cancel_event.clear()
-        self.complete_event.clear()
+        self.state = 'preparing'
+        self.time_elapsed = 0
 
+        # Process objects for subset and request operations
+        self.subset_process = None
+        self.request_process = None
+        
         # lock for main thread to clear on reconfirmation
         self.pause_event = threading.Event()
 
@@ -416,7 +444,7 @@ class GOODSRequest(object):
                 'state': self.state,
                 'size': self.subset_size,
                 'time_elapsed': self.time_elapsed,
-                'message': str(self.message),
+                'message': repr(self.message),
                 'outpath': self.outpath,
                 'tshift': self.tshift}
 
@@ -433,20 +461,22 @@ class GOODSRequest(object):
             raise ValueError('Subset operation not completed')
         else:
             self._subset_xr = subs
+        
 
     def start(self):
-        logger = multiprocessing.log_to_stderr()
+        logger = self.logger
         logger.setLevel(multiprocessing.SUBDEBUG)
         if self.state != 'preparing':
             msg = (f'Subset operation {self.request_id} '
                    'already started or completed')
-            log.error(msg)
+            self.write_log(msg, 'error', 'main')
             return msg
         self.state = 'subsetting'
         self._subset_finished = False
 
         message_queue = multiprocessing.Queue()
         message_queue.write = message_queue.put
+        
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -483,8 +513,8 @@ class GOODSRequest(object):
                 self.time_elapsed = counter
         status = msg
         logger.info('Joining subset process')
+        result = mq.get(timeout=60)
         self.subset_process.join()
-        result = mq.get()
         logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
@@ -505,7 +535,7 @@ class GOODSRequest(object):
         if status:
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
-            self._subset_xr = pickle.loads(result)
+            self._subset_xr = result 
             logger.info(str(self._subset_xr))
         else:
             self.message = status
@@ -536,7 +566,9 @@ class GOODSRequest(object):
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
+        register_exportable_file(self.orig_request, self.filename, self.outpath)
         self.complete_event.set()
+        #logger.close()
 
     def too_large(self):
         size = self._subset_xr.nbytes
@@ -551,6 +583,26 @@ class GOODSRequest(object):
     def error(self, msg):
         self.state = 'error'
         self.message = msg
+    
+    def reset(self):
+        self.state = 'preparing'
+        self.message = None
+        self.time_elapsed = 0
+        self._subset_finished = False
+        self._request_finished = False
+        self._subset_xr = None
+        self._request_xr = None
+        if self.subset_process:
+            self.subset_process.terminate()
+        if self.request_process:
+            self.request_process.terminate()
+        if self.request_thread:
+            try:
+                self.request_thread.join(timeout=1)
+            except Exception as e:
+                self.logger.error('Request thread join error: ' + repr(e))
+                raise
+            self.request_thread = None
 
     def reconfirm(self):
         if self.state == 'too_large':
@@ -570,23 +622,16 @@ class GOODSRequest(object):
             self.subset_process.terminate()
         if self.request_process:
             self.request_process.terminate()
-        monitor_thread = threading.Thread(target=self._deathwatch, daemon=True)
-        monitor_thread.start()
-
-    def _deathwatch(self):
-        self.request_thread.join(timeout=self._reconfirm_timeout)
-        if self.request_thread.is_alive():
-            print('REQUEST CANCELLATION FAILED')
-
-    def test_no_thread(self):
-        from dask.diagnostics import ProgressBar, Profiler
-        breakpoint()
-        with Profiler() as pb:
-            subs = api.get_model_file(**self.request_args)
-            pb.visualize()
-
-        with ProgressBar() as pb:
-            api.get_model_output(subs, self.outpath)
+        if self.request_thread:
+            try:
+                self.request_thread.join(timeout=3)
+            except Exception as e:
+                self.logger.error('Request thread join error: ' + repr(e))
+                raise
+    
+    def retry_request(self):
+        self.reset()
+        self.start()
 
 
 class Tracker(Callback):
@@ -649,7 +694,7 @@ def subset_process_func(request_args, mq):
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
         mq.put('success')
-        mq.put(pickle.dumps(result))
+        mq.put(result)
         mq.close()
         mq.join_thread()
     except Exception as e:

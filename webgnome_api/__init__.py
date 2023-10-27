@@ -2,6 +2,7 @@
     Main entry point
 """
 
+
 import os
 import shutil
 import logging
@@ -33,36 +34,35 @@ __version__ = "0.9"
 logging.basicConfig()
 
 supported_ocean_models = {
-    # 'GFS-1_4DEG',
     # 'RTOFS-GLOBAL',
-    # 'RTOFS-GLOBAL_2D',
-    # 'GFS-1_2DEG',
-    # 'GFS-1DEG',
     'GOFS': 'hycom-forecast-agg',
-    # 'RTOFS-ALASKA',
-    # 'RTOFS-WEST',
-    # 'RTOFS-EAST',
     'WCOFS': 'ioos-forecast-agg',
     'NGOFS2_RGRID': 'ioos-forecast-agg',
     # 'CREOFS': 'coops-forecast-noagg',
+    'CREOFS_RGRID': 'ioos-forecast-agg',
     # 'LMHOFS': 'coops-forecast-noagg',
+    'LMHOFS_RGRID': 'ioos-forecast-agg',
     'CIOFS': 'ioos-forecast-agg',
     # 'LSOFS': 'coops-forecast-agg',
+    'LSOFS_RGRID': 'ioos-forecast-agg',
     'CBOFS': 'ioos-forecast-agg',
     # 'LEOFS': 'coops-forecast-noagg',
+    'LEOFS_RGRID': 'ioos-forecast-agg',
     'DBOFS': 'ioos-forecast-agg',
     # 'LOOFS': 'coops-forecast-agg',
+    'LOOFS_RGRID': 'ioos-forecast-agg',
     # 'SFBOFS': 'coops-forecast-noagg',
+    'SFBOFS_RGRID': 'ioos-forecast-agg',
     'TBOFS': 'ioos-forecast-agg',
     # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
     'GOMOFS': 'ioos-forecast-agg',
-    'CREOFS_RGRID': 'ioos-forecast-agg',
 }
 
 
 supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
-                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
-                        'GFS_1DEG': ['ucar-forecast-agg', ]}
+                        #'GFS_1_2DEG': ['ucar-forecast-agg', ],
+                        #'GFS_1DEG': ['ucar-forecast-agg', ]
+                        }
 
 
 class WebgnomeFormatter(Formatter):
@@ -80,7 +80,7 @@ class WebgnomeFormatter(Formatter):
             else:
                 request = get_current_request()
 
-                if request is not None:
+                if request is not None and hasattr(request, 'session_hash'):
                     record.session_hash = request.session_hash
 
         # magic_record.__dict__ support dotted attribute lookup

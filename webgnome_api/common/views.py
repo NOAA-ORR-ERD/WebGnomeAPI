@@ -205,12 +205,11 @@ def create_object(request, implemented_types):
         raise cors_exception(request, HTTPNotImplemented)
 
     session_lock = acquire_session_lock(request)
-    log.info('  {} session lock acquired (sess:{}, thr_id: {})'
-             .format(log_prefix, id(session_lock), current_thread().ident))
+    log.info(f'  {log_prefix} session lock acquired '
+             f'(sess: {id(session_lock)}, thr_id: {current_thread().ident})')
 
     try:
-        log.info(request.session.session_id)
-        log.info('  ' + log_prefix + 'creating ' + json_request['obj_type'])
+        log.info(f'  {log_prefix} creating {json_request["obj_type"]}')
         obj = CreateObject(json_request, get_session_objects(request))
         RegisterObject(obj, request)
     except Exception:
@@ -265,22 +264,43 @@ def update_object(request, implemented_types):
 
 def switch_to_existing_session(request):
     '''
-    Allows us to re-establish contact with a session
+    For some reason, the multipart form does not contain
+    a session cookie, and Naomi so far has not been able to explicitly
+    set it.
+
+    So this allows us to re-establish contact with a session
     before processing form data, if the session ID is passed in as hidden
     POST content.
+
+    Note: the most recent version of pyramid_session_redis is kinda wonky
+          in that it tries to be performant by not hitting Redis every time.
+          This means we need to go through a few manual steps to attach our
+          existing session.
     '''
     redis_session_id = request.POST['session']
 
     if redis_session_id.encode('utf-8') in list(request.session.redis.keys()):
+        redis_lu_key = redis_session_id.encode('utf-8')
+        redis_managed_dict = request.session.deserialize(
+            request.session.redis[redis_lu_key]
+        )['m']
+
         def get_specific_session_id(redis, timeout, serialize, generator,
-                                    session_id=redis_session_id):
+                                    session_id=redis_session_id,
+                                    **kwargs):
             return session_id
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
                                   new_session_id_func=get_specific_session_id)
 
+        request.session._session_state.managed_dict = redis_managed_dict
+        request.session.do_persist()
+
         if request.session.session_id != redis_session_id:
+            log.error(f'request session_id ({request.session.session_id})'
+                      ' != '
+                      f'redis_session_id ({redis_session_id})')
             raise cors_response(request,
                                 HTTPBadRequest('multipart form request '
                                                'could not re-establish session'
@@ -288,28 +308,7 @@ def switch_to_existing_session(request):
 
 
 def process_upload(request, field_name):
-    # For some reason, the multipart form does not contain
-    # a session cookie, and Naomi so far has not been able to explicitly
-    # set it.  So a workaround is to put the session ID in the form as
-    # hidden POST content.
-    # Then we can re-establish our session with the request after
-    # checking that our session id is valid.
-    redis_session_id = request.POST['session']
-
-    if redis_session_id.encode('utf-8') in list(request.session.redis.keys()):
-        def get_specific_session_id(redis, timeout, serialize, generator,
-                                    session_id=redis_session_id):
-            return session_id
-
-        factory = request.registry.queryUtility(ISessionFactory)
-        request.session = factory(request,
-                                  new_session_id_func=get_specific_session_id)
-
-        if request.session.session_id != redis_session_id:
-            raise cors_response(request,
-                                HTTPBadRequest('multipart form request '
-                                               'could not re-establish session'
-                                               ))
+    switch_to_existing_session(request)
 
     upload_dir = get_session_dir(request)
     max_upload_size = eval(request.registry.settings['max_upload_size'])
