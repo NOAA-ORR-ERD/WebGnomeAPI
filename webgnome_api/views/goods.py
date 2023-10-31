@@ -25,6 +25,7 @@ from webgnome_api.common.session_management import (get_session_objects,
                                                     register_exportable_file)
 from webgnome_api.common.views import (cors_policy,
                                        cors_response,
+                                       HTTPPythonError,
                                        gen_unique_filename)
 
 from webgnome_api import supported_ocean_models, supported_met_models
@@ -104,19 +105,27 @@ def validate_subset(request):
    
     map_bounds is a polygon as a list of lon, lat pairs
     '''
-    bounds = request.GET.get('map_bounds', None)
+    params = request.GET
+    bounds = (float(params['WestLon']),
+              float(params['SouthLat']),
+              float(params['EastLon']), 
+              float(params['NorthLat']))
     start = request.GET.get('start_time',None)
     end = request.GET.get('end_time',None)
     model_id = request.GET.get('model_id', None)
     model_source = request.GET.get('model_source', None)
 
-    retval = api.validate_subset(
-        model_id,
-        model_source,
-        start,
-        end,
-        bounds
-        )
+    try:
+        retval = api.validate_subset(
+            model_id,
+            model_source,
+            start,
+            end,
+            bounds
+            )
+    except Exception as e:
+        return cors_response(request, HTTPPythonError(e))
+        
         
     return retval
 
@@ -196,7 +205,7 @@ def create_goods_request(request):
     class FetchConfig:
         """Configuration data class for fetching."""
 
-        model_name: str
+        model_id: str
         output_pth: Path
         start: pd.Timestamp
         end: pd.Timestamp
@@ -231,7 +240,7 @@ def create_goods_request(request):
     start = params['start_time']
     end = params['end_time']
 
-    fname = '{}_{}_{}.nc'.format(params['model_name'],
+    fname = '{}_{}_{}.nc'.format(params['model_id'],
                                  start.split("T")[0],
                                  end.split("T")[0])
 
@@ -249,7 +258,7 @@ def create_goods_request(request):
                              outpath=output_path,
                              request_type=request_type,
                              request_args={
-                                 'model_id': params['model_name'],
+                                 'model_id': params['model_id'],
                                  'model_source': source,
                                  'start': start,
                                  'end': end,
