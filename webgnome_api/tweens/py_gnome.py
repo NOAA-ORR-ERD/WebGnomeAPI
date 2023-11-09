@@ -8,6 +8,7 @@ import os
 import regex as re
 import base64
 import hashlib
+import traceback
 
 import ujson
 
@@ -15,6 +16,7 @@ from pyramid_session_redis.util import LazyCreateSession
 
 from webgnome_api.common.common_object import (ValueIsJsonObject,
                                                get_session_dir)
+from webgnome_api.common.views import cors_response, HTTPPythonError
 
 
 class PyGnomeSchemaTweenFactory(object):
@@ -144,7 +146,11 @@ class PyGnomeSchemaTweenFactory(object):
     def __call__(self, request):
         self.before_the_handler(request)
 
-        response = self.handler(request)
+        try:
+            response = self.handler(request)
+        except Exception as e:
+            print(traceback.format_exc())
+            response = cors_response(request, HTTPPythonError(e))
 
         self.after_the_handler(response)
 
