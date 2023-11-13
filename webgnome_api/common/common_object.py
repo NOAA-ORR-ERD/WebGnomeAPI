@@ -3,22 +3,21 @@
 """
 import os
 import shutil
-
 import urllib.request
-
 import ujson
-
 import logging
+
 from collections.abc import Iterable
 
-from .helpers import FQNamesToDict, PyClassFromName
-
+from gnome.gnomeobject import GnomeId
 from gnome.utilities.orderedcollection import OrderedCollection
 from gnome.spill_container import SpillContainerPair
 
-from webgnome_api.common.session_management import (set_session_object,
+from .helpers import FQNamesToDict, PyClassFromName
+
+from webgnome_api.common.session_management import (req_session_is_valid,
+                                                    set_session_object,
                                                     get_session_object)
-from gnome.gnomeobject import GnomeId
 
 log = logging.getLogger(__name__)
 
@@ -68,8 +67,7 @@ def CreateObject(json_obj, all_objects, deserialize_obj=True):
     id_ = json_obj.get('id', None)
 
     if id_ not in all_objects:
-        new_obj = py_class.deserialize(json_obj, all_objects)
-        return new_obj
+        return py_class.deserialize(json_obj, all_objects)
     else:
         return all_objects[id_]
 
@@ -214,6 +212,16 @@ def get_session_base_dir(request):
     return os.path.normpath(request.registry.settings['session_dir'])
 
 
+def get_persistent_dir(request):
+    persistent_dir = os.path.normpath(request.registry.settings['persistent_dir'])
+
+    if os.path.isdir(persistent_dir) is False:
+        os.makedirs(persistent_dir)
+
+    return persistent_dir
+
+
+@req_session_is_valid
 def get_session_dir(request):
     session_dir = os.path.join(get_session_base_dir(request),
                                request.session.session_id)
@@ -224,15 +232,7 @@ def get_session_dir(request):
     return session_dir
 
 
-def get_persistent_dir(request):
-    persistent_dir = os.path.normpath(request.registry.settings['persistent_dir'])
-
-    if os.path.isdir(persistent_dir) is False:
-        os.makedirs(persistent_dir)
-
-    return persistent_dir
-
-
+@req_session_is_valid
 def list_session_dir(request):
     '''
         Purely diagnostic in intent, we simply list the files in our
@@ -246,6 +246,7 @@ def list_session_dir(request):
             print(f'\t{f}')
 
 
+@req_session_is_valid
 def clean_session_dir(request):
     session_dir = get_session_dir(request)
 
@@ -280,7 +281,6 @@ def get_file_path(request, json_request=None):
         The file will be placed in a session specific directory inside
         model_data_dir
     '''
-
     goods_dir = request.registry.settings['goods_dir']
     goods_url = request.registry.settings['goods_url']
     session_dir = get_session_dir(request)

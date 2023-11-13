@@ -8,7 +8,6 @@ import urllib.parse
 import ujson
 
 from pyramid.settings import asbool
-from pyramid.interfaces import ISessionFactory
 from pyramid.response import Response, FileResponse
 
 from pyramid.httpexceptions import (HTTPNotFound,
@@ -35,7 +34,8 @@ from webgnome_api.common.views import (can_persist,
                                        cors_exception,
                                        cors_policy,
                                        cors_response,
-                                       cors_file_response)
+                                       cors_file_response,
+                                       switch_to_existing_session)
 from webgnome_api.common.session_management import (get_registered_file)
 
 log = logging.getLogger(__name__)
@@ -53,23 +53,37 @@ user_files = Service(name='user_files', path='/user_files',
 @user_files.get()
 def get_file(request):
     '''
-    Allows a user to retrieve the registered files in their session folder by name.
-    The name *must* be exactly as registered previously
+    Allows a user to retrieve the registered files in their session folder
+    by name.  The name *must* be exactly as registered previously
     Can provide either filename XOR file_list
     (TODO) Multiple names creates a zipped response.
     '''
     log_prefix = f'req({id(request)}): user_files.get_file():'
-    log.info(f'>>{log_prefix}')
+    log.info(f'>> {log_prefix}')
 
     file_list = urllib.parse.unquote(request.GET.get('file_list', ''))
     filename = urllib.parse.unquote(request.GET.get('filename', ''))
     if filename and file_list:
-        return cors_exception(request, HTTPBadRequest, explanation='Do not provide filename AND file_list')
+        return cors_exception(
+            request,
+            HTTPBadRequest,
+            explanation='Do not provide filename AND file_list'
+        )
+
     if not filename and not file_list:
-        return cors_exception(request, HTTPBadRequest, explanation='No filename or file_list provided')
+        return cors_exception(
+            request,
+            HTTPBadRequest,
+            explanation='No filename or file_list provided'
+        )
+
     if (filename and not isinstance(ujson.loads(filename), str)
        or file_list and not isinstance(ujson.loads(file_list), (list, tuple))):
-        return cors_exception(request, HTTPBadRequest, explanation='filename is not a string, or file_list is not a list')
+        return cors_exception(
+            request,
+            HTTPBadRequest,
+            explanation='filename is not a string, or file_list is not a list'
+        )
 
     if file_list:
         if len(file_list) == 1:
@@ -77,18 +91,26 @@ def get_file(request):
             filename = ujson.dumps(file_list[0])
             file_list = None
         else:
-            return cors_exception(request, HTTPBadRequest, explanation='Only file_list of length 1 is currently supported')
+            return cors_exception(
+                request,
+                HTTPBadRequest,
+                explanation='Only file_list of length 1 is currently supported'
+            )
 
     if filename:
         filename = ujson.loads(filename)
         filepath = get_registered_file(request, filename)
         if filepath is None:
-            return cors_exception(request, HTTPNotFound, explanation='Filename not previously registered')
+            return cors_exception(
+                request,
+                HTTPNotFound,
+                explanation='Filename not previously registered'
+            )
         response = FileResponse(filepath, request=request,
                                 content_type='application/octet-stream')
         response.headers['Content-Disposition'] = ("attachment; filename={0}"
                                                    .format(filename))
-    log.info(f'<<{log_prefix}')
+    log.info(f'<< {log_prefix}')
 
     return response
 
@@ -131,8 +153,7 @@ def modify_filesystem(request):
     '''
     if (request.POST.get('action', None) == 'upload_files'):
         paths, _filename = process_upload(request)
-        resp = Response(ujson.dumps(paths))
-        return resp
+        return Response(ujson.dumps(paths))
 
     if (request.POST.get('action', None) == 'activate_file'):
         filelist = ujson.loads(request.POST.get('filelist'))
@@ -142,8 +163,7 @@ def modify_filesystem(request):
         for f in filelist:
             paths.append(os.path.join(upload_dir, f))
 
-        resp = Response(ujson.dumps(paths))
-        return resp
+        return Response(ujson.dumps(paths))
 
     sub_folders = [urllib.parse.unquote(d)
                    for d in request.matchdict['sub_folders']
@@ -170,22 +190,7 @@ def process_upload(request):
     returns an in-order list full paths to the file and an in-order list of
     the basename of the file
     '''
-    redis_session_id = request.POST['session']
-
-    if redis_session_id in list(request.session.redis.keys()):
-        def get_specific_session_id(_redis, _timeout, _serialize, _generator,
-                                    session_id=redis_session_id):
-            return session_id
-
-        factory = request.registry.queryUtility(ISessionFactory)
-        request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
-
-        if request.session.session_id != redis_session_id:
-            raise cors_response(request, HTTPBadRequest(
-                'multipart form request '
-                'could not re-establish session'
-            ))
+    switch_to_existing_session(request)
 
     upload_dir = os.path.relpath(get_session_dir(request))
     max_upload_size = eval(request.registry.settings['max_upload_size'])
@@ -197,11 +202,11 @@ def process_upload(request):
     else:
         can_persist = False
 
-    log.info(f'save_file_dir: {upload_dir}')
-    log.info(f'max_upload_size: {max_upload_size}')
+    log.info(f'{upload_dir=}')
+    log.info(f'{max_upload_size=}')
 
-    log.info(f'persist_upload?: {persist_upload}')
-    log.info(f'can_persist?: {can_persist}')
+    log.info(f'{persist_upload=}')
+    log.info(f'{can_persist=}')
 
     # for each file, process into server
     input_file = request.POST['file'].file

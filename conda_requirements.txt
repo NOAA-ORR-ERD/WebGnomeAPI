@@ -14,7 +14,7 @@
 
 # this is intended to be installed with py_gnome
 #  -- python version should already be pinned
-python>=3.8,<3.11
+python>=3.9,<3.11
 
 # numpy is not strictly needed by the API, but is by gnome, etc,
 # and adding it helps keep conda from trying to up- or down-grade it.
@@ -22,11 +22,11 @@ python>=3.8,<3.11
 numpy
 regex
 awesome-slugify
-pyramid>=1.10.1,<2
+pyramid>=2,<3
 paste
 pastedeploy>=2.0
 pyramid_log
-pyramid_redis_sessions
+pyramid_session_redis
 cornice>=3.4
 ujson
 docutils
