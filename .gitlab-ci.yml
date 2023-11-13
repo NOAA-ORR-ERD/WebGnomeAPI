@@ -584,6 +584,7 @@ deploy_proxy_production:
     PORT_MAPPING1: 443:443
     PORT_MAPPING2: 80:80
     GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
+    GNOME_TESTDATA_FOLDER: /data/gnome_testdata
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
@@ -609,6 +610,7 @@ deploy_proxy_production:
       --restart unless-stopped
       -p $PORT_MAPPING1 -p $PORT_MAPPING2
       -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
+      -v $GNOME_TESTDATA_FOLDER:/usr/share/nginx/html/py_gnome_testdata/
       -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
 
 stop_proxy_production:
