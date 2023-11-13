@@ -3,7 +3,6 @@ Functional tests for the Mover Web API
 """
 import time
 import pytest
-import os
 from .base import FunctionalTestBase, MODELS_DIR
 
 
@@ -31,10 +30,10 @@ class BaseMoverTests(FunctionalTestBase):
         self.testapp.get('/mover/{0}'.format(obj_id), status=404)
 
     def test_get_valid_id(self):
-        # 1. create the object by performing a put with no id
-        # 2. get the valid id from the response
-        # 3. perform an additional get of the object with a valid id
-        # 4. check that our new JSON response matches the one from the create
+        # 1. Create the object by performing a put with no id
+        # 2. Get the valid id from the response
+        # 3. Perform an additional get of the object with a valid id
+        # 4. Check that our new JSON response matches the one from the create
         resp1 = self.testapp.post_json('/mover', params=self.req_data)
 
         obj_id = resp1.json_body['id']
@@ -165,14 +164,14 @@ class WindMoverTests(BaseMoverTests):
             assert resp2.json_body[a] == resp1.json_body[a]
 
     def test_put_no_id(self):
-        # WindMover reauires a valid Wind object for creation
+        # WindMover requires a valid Wind object for creation
         wind_obj = self.create_wind_obj(self.wind_req_data)
         self.req_data['wind'] = wind_obj
 
         self.testapp.put_json('/mover', params=self.req_data, status=404)
 
     def test_put_invalid_id(self):
-        # WindMover reauires a valid Wind object for creation
+        # WindMover requires a valid Wind object for creation
         wind_obj = self.create_wind_obj(self.wind_req_data)
         self.req_data['wind'] = wind_obj
 
@@ -353,7 +352,7 @@ class CatsMoverTests(BaseMoverTests):
 
     req_data = {'obj_type': 'gnome.movers.c_current_movers.CatsMover',
                 'filename': str(MODELS_DIR / 'tidesWAC.CUR'),
-                #'scale': True, Cannot use any longer due to pygnome changes
+                # 'scale': True, Cannot use any longer due to pygnome changes
                 'scale_value': 1.0,
                 'scale_refpoint': (-72.705, 41.2275, 0.0),
                 }
@@ -588,7 +587,7 @@ class IceInfoTests(FunctionalTestBase):
                                                     'windage_range': (0.01,
                                                                       0.04)
                                                     }],
-                                     },
+                                  },
                     'release': {'end_position': (-164.01696, 72.921024, 0.0),
                                 'end_release_time': None,
                                 'name': 'PointLineRelease',
@@ -610,21 +609,21 @@ class IceInfoTests(FunctionalTestBase):
                                                     'windage_range': (0.01,
                                                                       0.04)
                                                     }],
-                                     },
+                                  },
                     'release': {'obj_type': ('gnome.spills.release'
                                              '.Release'),
                                 'name': 'Release',
                                 'release_time': '2015-05-14T00:00:00',
                                 'custom_positions': [(-127.1, 47.93, 0.0),
-                                                   (-127.033, 47.948, 0.0),
-                                                   (-126.967, 47.968, 0.0),
-                                                   (-126.9, 47.987, 0.0),
-                                                   (-126.833, 48.0056, 0.0),
-                                                   (-126.767, 48.024, 0.0),
-                                                   (-126.7, 48.043, 0.0),
-                                                   (-126.633, 48.062, 0.0),
-                                                   (-126.567, 48.081, 0.0),
-                                                   (-126.5, 48.1, 0.0)]
+                                                     (-127.033, 47.948, 0.0),
+                                                     (-126.967, 47.968, 0.0),
+                                                     (-126.9, 47.987, 0.0),
+                                                     (-126.833, 48.0056, 0.0),
+                                                     (-126.767, 48.024, 0.0),
+                                                     (-126.7, 48.043, 0.0),
+                                                     (-126.633, 48.062, 0.0),
+                                                     (-126.567, 48.081, 0.0),
+                                                     (-126.5, 48.1, 0.0)]
                                 }
                     }
                    ]
@@ -663,9 +662,6 @@ class IceInfoTests(FunctionalTestBase):
                 }
 
     def test_get_incomplete_paths(self):
-        # spillable_area = [((5, 2), (15, 2), (15, 10), (10, 10), (10, 5)
-        #                    )]
-
         params = {}
         params.update(self.req_data)
 

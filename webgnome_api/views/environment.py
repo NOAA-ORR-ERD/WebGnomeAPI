@@ -55,12 +55,15 @@ implemented_types = ('gnome.environment.Tide',
 def get_environment(request):
     '''Returns an Gnome Environment object in JSON.'''
     content_requested = request.matchdict.get('obj_id')
+
     resp = Response(
         content_type='arraybuffer',
         content_encoding='deflate'
     )
-    route = content_requested[1] if len(content_requested) > 1 else None
+
     if (len(content_requested) > 1):
+        route = content_requested[1] if len(content_requested) > 1 else None
+
         if route == 'grid':
             resp.body = get_grid(request)
             return cors_response(request, resp)

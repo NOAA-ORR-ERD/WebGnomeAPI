@@ -9,6 +9,7 @@ import uuid
 import logging
 
 from threading import current_thread
+from string import Template
 
 from pyramid.settings import asbool
 from pyramid.interfaces import ISessionFactory
@@ -17,7 +18,10 @@ from pyramid.httpexceptions import (HTTPBadRequest,
                                     HTTPNotFound,
                                     HTTPInsufficientStorage,
                                     HTTPUnsupportedMediaType,
-                                    HTTPNotImplemented)
+                                    HTTPNotImplemented,
+                                    HTTPServerError,
+                                    _no_escape)
+from webob import html_escape as _html_escape
 
 from .system_resources import (get_free_space,
                                get_size_of_open_file,
@@ -46,6 +50,42 @@ cors_policy = {'credentials': True,
 log = logging.getLogger(__name__)
 
 web_ser_opts = {'raw_paths': False}
+
+
+class HTTPPythonError(HTTPServerError):
+    
+    code=525
+    title = 'Python Error'
+    explanation = 'A python error was caught while executing your request.'
+    body_template_obj = Template('{"error_type":"${error_type}", "message":"${message}", "traceback":"${traceback}"}')
+    
+    def __init__(self, error_instance, traceback=False, **kwargs):
+        super(HTTPPythonError, self).__init__(**kwargs)
+        self.error_type = error_instance.__class__.__name__
+        self.message = str(error_instance)
+        if traceback:
+            self.stacktrace = traceback.format_exc()
+        else:
+            self.stacktrace = None
+
+    def _json_formatter(self, title, status, explanation, error_type, message, stacktrace):
+        return ujson.dumps({'code': status, 'title': title, 'explanation': explanation, 'error_type': error_type, 'message': message, 'stacktrace': stacktrace})
+    
+    def prepare(self, environ):
+            body_tmpl = self.body_template_obj
+            args = {
+                'title': self.title,
+                'status': self.status,
+                'error_type': _no_escape(self.error_type),
+                'explanation': _html_escape(self.explanation),
+                'message': _html_escape(self.message),
+                'stacktrace': _no_escape(self.stacktrace),
+            }
+            body = self._json_formatter(**args)
+            if isinstance(body, str):
+                body = body.encode(self.charset if self.charset else 'UTF-8')
+            self.app_iter = [body]
+            self.body = body
 
 
 def can_persist(funct):
@@ -205,12 +245,11 @@ def create_object(request, implemented_types):
         raise cors_exception(request, HTTPNotImplemented)
 
     session_lock = acquire_session_lock(request)
-    log.info('  {} session lock acquired (sess:{}, thr_id: {})'
-             .format(log_prefix, id(session_lock), current_thread().ident))
+    log.info(f'  {log_prefix} session lock acquired '
+             f'(sess: {id(session_lock)}, thr_id: {current_thread().ident})')
 
     try:
-        log.info(request.session.session_id)
-        log.info('  ' + log_prefix + 'creating ' + json_request['obj_type'])
+        log.info(f'  {log_prefix} creating {json_request["obj_type"]}')
         obj = CreateObject(json_request, get_session_objects(request))
         RegisterObject(obj, request)
     except Exception:
@@ -265,22 +304,43 @@ def update_object(request, implemented_types):
 
 def switch_to_existing_session(request):
     '''
-    Allows us to re-establish contact with a session
+    For some reason, the multipart form does not contain
+    a session cookie, and Naomi so far has not been able to explicitly
+    set it.
+
+    So this allows us to re-establish contact with a session
     before processing form data, if the session ID is passed in as hidden
     POST content.
+
+    Note: the most recent version of pyramid_session_redis is kinda wonky
+          in that it tries to be performant by not hitting Redis every time.
+          This means we need to go through a few manual steps to attach our
+          existing session.
     '''
     redis_session_id = request.POST['session']
 
     if redis_session_id.encode('utf-8') in list(request.session.redis.keys()):
+        redis_lu_key = redis_session_id.encode('utf-8')
+        redis_managed_dict = request.session.deserialize(
+            request.session.redis[redis_lu_key]
+        )['m']
+
         def get_specific_session_id(redis, timeout, serialize, generator,
-                                    session_id=redis_session_id):
+                                    session_id=redis_session_id,
+                                    **kwargs):
             return session_id
 
         factory = request.registry.queryUtility(ISessionFactory)
         request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
+                                  new_session_id_func=get_specific_session_id)
+
+        request.session._session_state.managed_dict = redis_managed_dict
+        request.session.do_persist()
 
         if request.session.session_id != redis_session_id:
+            log.error(f'request session_id ({request.session.session_id})'
+                      ' != '
+                      f'redis_session_id ({redis_session_id})')
             raise cors_response(request,
                                 HTTPBadRequest('multipart form request '
                                                'could not re-establish session'
@@ -288,28 +348,7 @@ def switch_to_existing_session(request):
 
 
 def process_upload(request, field_name):
-    # For some reason, the multipart form does not contain
-    # a session cookie, and Nathan so far has not been able to explicitly
-    # set it.  So a workaround is to put the session ID in the form as
-    # hidden POST content.
-    # Then we can re-establish our session with the request after
-    # checking that our session id is valid.
-    redis_session_id = request.POST['session']
-
-    if redis_session_id.encode('utf-8') in list(request.session.redis.keys()):
-        def get_specific_session_id(redis, timeout, serialize, generator,
-                                    session_id=redis_session_id):
-            return session_id
-
-        factory = request.registry.queryUtility(ISessionFactory)
-        request.session = factory(request,
-                                  new_session_id=get_specific_session_id)
-
-        if request.session.session_id != redis_session_id:
-            raise cors_response(request,
-                                HTTPBadRequest('multipart form request '
-                                               'could not re-establish session'
-                                               ))
+    switch_to_existing_session(request)
 
     upload_dir = get_session_dir(request)
     max_upload_size = eval(request.registry.settings['max_upload_size'])

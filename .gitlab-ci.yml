@@ -1,5 +1,5 @@
 variables:
-  PYTHON_VER: "3.9"
+  PYTHON_VER: "3.10"
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
 
@@ -52,21 +52,21 @@ test_src:
     - yum install redis -y
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/mc-goods.git
     - mamba install -y --file conda_requirements.txt
                        --file conda_requirements_test.txt
                        --file libgoods/conda_requirements.txt
-
-    # - mamba uninstall --force mc-goods  # --force flag not working?
-    - conda uninstall --force mc-goods
-
-    - pushd mc-goods && pip install . && popd
 
     - pushd libgoods && pip install . && popd
     - pip install .
 
     - python setup.py compilejson
     - pytest webgnome_api/tests
+    - conda list > conda_packages.txt
+  artifacts:
+    when: always
+    expire_in: 15 days
+    paths:
+      - ./conda_packages.txt
 
 build_temp_img:
   stage: build_temp_img
@@ -82,7 +82,6 @@ build_temp_img:
     - build
   script:
     - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/mc-goods.git
 
     - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
 
