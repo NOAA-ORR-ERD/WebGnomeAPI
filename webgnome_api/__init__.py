@@ -59,8 +59,8 @@ supported_ocean_models = {
 }
 
 
-supported_met_models = {#'GFS_1_4DEG': ['ucar-forecast-agg', ],
-                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
+supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
+                        #'GFS_1_2DEG': ['ucar-forecast-agg', ],
                         #'GFS_1DEG': ['ucar-forecast-agg', ]
                         }
 
