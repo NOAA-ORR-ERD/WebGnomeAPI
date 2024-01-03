@@ -113,12 +113,12 @@ def validate_subset(request):
     start = request.GET.get('start_time',None)
     end = request.GET.get('end_time',None)
     model_id = request.GET.get('model_id', None)
-    model_source = request.GET.get('model_source', None)
+    source = request.GET.get('source', None)
 
     try:
         retval = api.validate_subset(
             model_id,
-            model_source,
+            source,
             start,
             end,
             bounds
