@@ -314,7 +314,7 @@ class StepTest(FunctionalTestBase):
         weathering_out = [v for v
                           in list(first_step['WeatheringOutput'].values())
                           if isinstance(v, dict)][0]
-        assert len(weathering_out) == 11
+        assert len(weathering_out) == 12
 
         resp = self.testapp.get('/step')
         second_step = resp.json_body
@@ -324,7 +324,7 @@ class StepTest(FunctionalTestBase):
         weathering_out = [v for v
                           in list(second_step['WeatheringOutput'].values())
                           if isinstance(v, dict)][0]
-        assert len(weathering_out) == 11
+        assert len(weathering_out) == 12
 
         resp = self.testapp.get('/rewind')
         rewind_response = resp.json_body
@@ -338,7 +338,7 @@ class StepTest(FunctionalTestBase):
         weathering_out = [v for v
                           in list(rewound_step['WeatheringOutput'].values())
                           if isinstance(v, dict)][0]
-        assert len(weathering_out) == 11
+        assert len(weathering_out) == 12
 
     def test_current_output_step(self):
         # We are testing our ability to generate the first step in a

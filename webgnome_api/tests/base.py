@@ -34,6 +34,10 @@ class FunctionalTestBase(GnomeTestCase):
         app = main(None, **self.settings)
         self.testapp = TestApp(app)
 
+        # step 1: We get a session.
+        resp = self.testapp.post_json('/session')
+        assert 'set-cookie' in resp.headers
+
     def tearDown(self):
         'Clean up any images the model generated after running tests.'
         test_images_dir = os.path.join(self.settings['model_data_dir'],

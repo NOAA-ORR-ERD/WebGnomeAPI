@@ -1,7 +1,7 @@
 """
 Functional tests for the Model Web API
 """
-#from gnome.multi_model_broadcast import ModelBroadcaster
+# from gnome.multi_model_broadcast import ModelBroadcaster
 from .base import FunctionalTestBase, MODELS_DIR
 
 from pprint import PrettyPrinter
@@ -89,7 +89,8 @@ class ModelTests(FunctionalTestBase):
         # Note: We are choosing to skip this feature for now, and the only
         #       way to do that here is to comment out the assert.
         # app = self.testapp.app
-        # assert not [v for s in list(app.registry.settings['objects'].values())
+        # assert not [v
+        #             for s in list(app.registry.settings['objects'].values())
         #             for v in list(s.values())
         #             if isinstance(v, ModelBroadcaster)]
 
@@ -150,7 +151,8 @@ class ModelTests(FunctionalTestBase):
         # Note: We are choosing to skip this feature for now, and the only
         #       way to do that here is to comment out the assert.
         # app = self.testapp.app
-        # assert not [v for s in list(app.registry.settings['objects'].values())
+        # assert not [v
+        #             for s in list(app.registry.settings['objects'].values())
         #             for v in list(s.values())
         #             if isinstance(v, ModelBroadcaster)]
 
@@ -277,7 +279,8 @@ class NestedModelTests(FunctionalTestBase):
         # Note: We are choosing to skip this feature for now, and the only
         #       way to do that here is to comment out the assert.
         # app = self.testapp.app
-        # assert not [v for s in list(app.registry.settings['objects'].values())
+        # assert not [v
+        #             for s in list(app.registry.settings['objects'].values())
         #             for v in list(s.values())
         #             if isinstance(v, ModelBroadcaster)]
 
@@ -839,7 +842,7 @@ class NestedModelTests(FunctionalTestBase):
                        'substance': {'obj_type': 'gnome.spills.substance.NonWeatheringSubstance',
                                      'windage_range': [0.01, 0.04],
                                      'windage_persist': 900,
-                                    },
+                                     },
                        }]
         req_data['spills'] = spill_data
 
@@ -884,8 +887,8 @@ class NestedModelTests(FunctionalTestBase):
                                                        'windage_range': [0.01, 0.04],
                                                        'windage_persist': 900,
                                                        }
-                                                       ]
-                                        },
+                                                      ]
+                                     },
                        }]
         req_data['spills'] = spill_data
 
@@ -928,7 +931,7 @@ class NestedModelTests(FunctionalTestBase):
                                                        'windage_range': [0.01, 0.04],
                                                        'windage_persist': 900,
                                                        }]
-                                        },
+                                     },
                        }]
         req_data['spills'] = spill_data
 
@@ -964,11 +967,11 @@ class NestedModelTests(FunctionalTestBase):
                                                     0.0],
                                    },
                        'substance': {'obj_type': 'gnome.spills.substance.NonWeatheringSubstance',
-                                        'initializers': [{'obj_type': 'gnome.spills.initializers.InitWindages',
-                                                          'windage_range': [0.01, 0.04],
-                                                          'windage_persist': 900,
-                                                          }]
-                                        },
+                                     'initializers': [{'obj_type': 'gnome.spills.initializers.InitWindages',
+                                                       'windage_range': [0.01, 0.04],
+                                                       'windage_persist': 900,
+                                                       }]
+                                     },
                        }]
         req_data['spills'] = spill_data
 

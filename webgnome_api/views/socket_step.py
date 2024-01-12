@@ -1,4 +1,3 @@
-from distutils.util import execute
 import sys
 import time
 import logging
@@ -15,12 +14,8 @@ from threading import current_thread
 
 import gevent
 
-from pyramid.response import FileResponse
-
-from pyramid.httpexceptions import (HTTPInternalServerError,
-                                    HTTPPreconditionFailed,
-                                    HTTPUnprocessableEntity,
-                                    HTTPNotFound)
+from pyramid.httpexceptions import (HTTPPreconditionFailed,
+                                    HTTPUnprocessableEntity)
 from cornice import Service
 from greenlet import GreenletExit
 
@@ -37,7 +32,6 @@ from webgnome_api.common.session_management import (get_active_model,
 
 from webgnome_api.common.views import (cors_exception,
                                        cors_policy,
-                                       cors_response,
                                        json_exception)
 from .goods import GOODSRequest
 
@@ -62,13 +56,11 @@ class GnomeRuntimeError(Exception):
 
 
 def get_greenlet_logger(request):
-    adpt = logging.LoggerAdapter(log, {'request': request})
-    return adpt
+    return logging.LoggerAdapter(log, {'request': request})
 
 
 def is_develop_mode(settings):
-    return ('develop_mode' in settings and
-            settings['develop_mode'].lower() == 'true')
+    return settings.get('develop_mode', 'false') == 'true'
 
 
 @export_api.put()
@@ -81,8 +73,8 @@ def run_export_model(request):
     When the greenlet running the model dies, it removes the outputters
     that were added via a linked function
     '''
-    log_prefix = 'req{0}: run_export_model()'.format(id(request))
-    log.info('>>' + log_prefix)
+    log_prefix = f'req{id(request)}: run_export_model()'
+    log.info(f'>> {log_prefix}')
 
     ns = request.registry.get('sio_ns')
 
@@ -109,7 +101,7 @@ def run_export_model(request):
         # creating an outputter, which may leave a different successfully added
         # outputter behind if one was created before the exception
         active_model.outputters += o
-        log.info('attaching export outputter: ' + o.filename)
+        log.info(f'attaching export outputter: {o.filename}')
 
     sid = ns.get_sockid_from_sessid(request.session.session_id)
 
@@ -125,8 +117,6 @@ def run_export_model(request):
 
                 active_model.rewind()
                 log.info(f'{grn.__repr__()}: cleaned up {str(num)} outputters')
-
-                end_filename = None
 
                 if (grn.exception or isinstance(grn.value, GreenletExit)):
                     # A cleanly stopped Greenlet may exit with GreenletExit
@@ -165,7 +155,8 @@ def run_export_model(request):
 
                         shutil.move(obj_fn, end_filepath)
 
-                    register_exportable_file(request, end_basename, end_filepath)
+                    register_exportable_file(request, end_basename,
+                                             end_filepath)
 
                     ns.emit('export_finished', end_basename, room=sid)
 
@@ -183,8 +174,6 @@ def run_export_model(request):
         sock_session['num_sent'] = 0
 
         if active_model and not ns.active_greenlets.get(sid):
-            args = (execute_async_model, active_model, ns, sid, request)
-            #    gl.link(get_export_cleanup())
             gl = ns.active_greenlets[sid] = gevent.spawn(
                 execute_async_model,
                 active_model,
@@ -208,8 +197,8 @@ def run_model(request):
     web socket. Until interrupted using halt_model(), it will run to
     completion
     '''
-    log_prefix = 'req{0}: run_model()'.format(id(request))
-    log.info('>>' + log_prefix)
+    log_prefix = f'req{id(request)}: run_model()'
+    log.info(f'>> {log_prefix}')
 
     ns = request.registry.get('sio_ns')
 
@@ -221,22 +210,21 @@ def run_model(request):
     sid = ns.get_sockid_from_sessid(request.session.session_id)
     if sid is None:
         raise ValueError('no sock_session associated with pyramid_session')
+
     with ns.session(sid) as sock_session:
         sock_session['num_sent'] = 0
 
         if active_model and not ns.active_greenlets.get(sid):
-            args = (execute_async_model, active_model, ns, sid, request)
-            # with gevent.Greenlet.spawn(*args) as gl:
-            #     ns.active_greenlets[sid] = gl
-            #     gl.session_hash = request.session_hash
             gl = ns.active_greenlets[sid] = gevent.spawn(
                 execute_async_model,
                 active_model,
                 ns,
                 sid,
-                request)
+                request
+            )
+
             gl.session_hash = request.session_hash
-            gl.join()
+
             return None
         else:
             return None
@@ -251,7 +239,7 @@ def execute_async_model(active_model=None,
     '''
     print(request.session_hash)
     log = get_greenlet_logger(request)
-    log_prefix = 'req{0}: execute_async_model()'.format(id(request))
+    log_prefix = f'req{id(request)}: execute_async_model()'
 
     # use get_session to get a clone of the session
     sock_session_copy = socket_namespace.get_session(sockid)
@@ -451,7 +439,7 @@ def get_rewind(request):
                         sock_session['lock'].clear()
 
             session_objs = get_session_objects(request)
-            #clean up any 'dead' GOODS requests
+            # clean up any 'dead' GOODS requests
             for obj in list(session_objs.values()):
                 if isinstance(obj, GOODSRequest) and obj.state == 'dead':
                     log.info(f'Removing GOODS request {obj.request_id}')

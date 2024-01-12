@@ -41,6 +41,9 @@ HEADER = f"""        # All WebGnome requirements (including tests)
         #
         # It should be rerun if any of the requirements have changed
         # for PyGNOME or webgnomeapi
+        #
+        # NOTE: the python version is pinned to: {PYTHON_VER} in the
+        # build_requirements_file.py script.
 
         """
 

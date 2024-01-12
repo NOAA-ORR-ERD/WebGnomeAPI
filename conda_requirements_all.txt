@@ -4,51 +4,57 @@
 #
 # build_requirements_file.py
 #
-# on 2023-05-08
+# on 2023-10-27
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
+#
+# NOTE: the python version is pinned to: 3.9 in the
+# build_requirements_file.py script.
 
 python=3.9
-python>=3.9,<3.11
+python>=3.9,<3.12
 trimesh
 shapely
 pyproj
 mapbox_earcut
 numpy
-scipy<1.10
+scipy
 gsw
 psutil
 pyzmq
 python-dateutil
 geojson
-colander=1.8.3
+colander <2
 netCDF4
 pyshp
 progressbar
-gridded=0.5.3
+gridded>=0.5.7
 pynucos
 cell_tree2d
-py_gd=2.*
-python>=3.8,<3.11
+py_gd>=2.2
+adios_db>=1.1
+python>=3.9,<3.12
 numpy>=1.20
 pynucos>=2.12
-python>=3.8,<3.11
+python>=3.8
 extract_model
 netCDF4=1.6.0  # multithreading not supported in newer versions
 numpy
 requests
 shapely
-model_catalogs
-python>=3.8,<3.11
+s3fs
+pandas
+yaml
+python>=3.9,<3.11
 numpy
 regex
 awesome-slugify
-pyramid>=1.10.1,<2
+pyramid>=2,<3
 paste
 pastedeploy>=2.0
 pyramid_log
-pyramid_redis_sessions
+pyramid_session_redis
 cornice>=3.4
 ujson
 docutils

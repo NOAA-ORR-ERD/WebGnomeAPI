@@ -23,6 +23,7 @@ from webgnome_api.common.views import (cors_exception,
 from webgnome_api.common.session_management import (get_session_object,
                                                     acquire_session_lock)
 
+log = logging.getLogger(__name__)
 
 edited_cors_policy = cors_policy.copy()
 edited_cors_policy['headers'] = edited_cors_policy['headers'] + ('num_lengths',)
@@ -37,7 +38,6 @@ implemented_types = ('gnome.spills.release.Release',
                      'gnome.spills.release.VerticalPlumeRelease',
                      )
 
-log = logging.getLogger(__name__)
 geojson_types = ('gnome.spills.release.PolygonRelease',
                  'gnome.spills.release.NESDISRelease')
 
@@ -46,12 +46,15 @@ geojson_types = ('gnome.spills.release.PolygonRelease',
 def get_release(request):
     '''Returns an Gnome Release object in JSON.'''
     content_requested = request.matchdict.get('obj_id')
+
     resp = Response(
         content_type='arraybuffer',
         content_encoding='deflate'
     )
-    route = content_requested[1] if len(content_requested) > 1 else None
+
     if (len(content_requested) > 1):
+        route = content_requested[1] if len(content_requested) > 1 else None
+
         if route == 'start_positions':
             resp.body = get_start_positions(request)
 

@@ -2,6 +2,7 @@
     Main entry point
 """
 
+
 import os
 import shutil
 import logging
@@ -17,7 +18,7 @@ from pyramid.renderers import JSON as JSONRenderer
 from pyramid.threadlocal import get_current_request
 from pyramid_log import Formatter, _WrapDict, _DottedLookup
 
-from pyramid_redis_sessions import session_factory_from_settings
+from pyramid_session_redis import session_factory_from_settings
 
 from webgnome_api.common.views import cors_policy
 from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
@@ -33,33 +34,35 @@ __version__ = "0.9"
 logging.basicConfig()
 
 supported_ocean_models = {
-                        #'RTOFS-GLOBAL',
-                        #'RTOFS-GLOBAL_2D',
-                        'GOFS':'hycom-forecast-agg',
-                        #'RTOFS-ALASKA',
-                        #'RTOFS-WEST',
-                        #'RTOFS-EAST',
-                        'WCOFS':'ioos-forecast-agg',
-                        'NGOFS2_RGRID':'ioos-forecast-agg',
-                        #'CREOFS':'coops-forecast-noagg',
-                        #'LMHOFS':'coops-forecast-noagg',
-                        'CIOFS':'ioos-forecast-agg',
-                        #'LSOFS':'coops-forecast-agg',
-                        'CBOFS':'ioos-forecast-agg',
-                        #'LEOFS':'coops-forecast-noagg',
-                        'DBOFS':'ioos-forecast-agg',
-                        #'LOOFS':'coops-forecast-agg',
-                        #'SFBOFS':'coops-forecast-noagg',
-                        'TBOFS':'ioos-forecast-agg',
-                        #'NYOFS':'coops-forecast-agg', #this one has missing time steps
-                        'GOMOFS':'ioos-forecast-agg',
-                        'CREOFS_RGRID':'ioos-forecast-agg',
+    # 'RTOFS-GLOBAL',
+    'GOFS': 'hycom-forecast-agg',
+    'WCOFS': 'ioos-forecast-agg',
+    'NGOFS2_RGRID': 'ioos-forecast-agg',
+    # 'CREOFS': 'coops-forecast-noagg',
+    'CREOFS_RGRID': 'ioos-forecast-agg',
+    # 'LMHOFS': 'coops-forecast-noagg',
+    'LMHOFS_RGRID': 'ioos-forecast-agg',
+    'CIOFS': 'ioos-forecast-agg',
+    # 'LSOFS': 'coops-forecast-agg',
+    'LSOFS_RGRID': 'ioos-forecast-agg',
+    'CBOFS': 'ioos-forecast-agg',
+    # 'LEOFS': 'coops-forecast-noagg',
+    'LEOFS_RGRID': 'ioos-forecast-agg',
+    'DBOFS': 'ioos-forecast-agg',
+    # 'LOOFS': 'coops-forecast-agg',
+    'LOOFS_RGRID': 'ioos-forecast-agg',
+    # 'SFBOFS': 'coops-forecast-noagg',
+    'SFBOFS_RGRID': 'ioos-forecast-agg',
+    'TBOFS': 'ioos-forecast-agg',
+    # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
+    'GOMOFS': 'ioos-forecast-agg',
+}
+
+supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
+                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
+                        #'GFS_1DEG': ['ucar-forecast-agg', ]
                         }
 
-                        
-supported_met_models = {'GFS_1_4DEG':['ucar-forecast-agg',],
-                        'GFS_1_2DEG':['ucar-forecast-agg',],
-                        'GFS_1DEG':['ucar-forecast-agg',]}
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -76,7 +79,7 @@ class WebgnomeFormatter(Formatter):
             else:
                 request = get_current_request()
 
-                if request is not None:
+                if request is not None and hasattr(request, 'session_hash'):
                     record.session_hash = request.session_hash
 
         # magic_record.__dict__ support dotted attribute lookup
@@ -129,14 +132,29 @@ def get_json(request):
     return ujson.loads(request.text, ensure_ascii=False)
 
 
+def my_redis_session_logger(request, raised_exception):
+    """
+    raised_exception will be an instance of InvalidSession
+    log the exception to statsd for metrics
+    """
+    print(f'RedisSession raised exception: {raised_exception} '
+          f'on request {request}')
+
+
 def overload_redis_session_factory(settings, config):
     '''
-        pyramid_redis_sessions will create a session object for every request,
+        pyramid_session_redis will create a session object for every request,
         even the CORS preflight requests, and if there is no session cookie,
         a new session key will be created.  And the CORS preflight requests
         will never have a session cookie.  So we overload the session factory
         function here and add a special case for CORS preflight requests.
     '''
+    # If we ever need to debug what's happening with the Redis sessions,
+    # we can turn on logging here.
+    # settings.update({
+    #     'redis.sessions.func_invalid_logger': my_redis_session_logger
+    # })
+
     session_factory = session_factory_from_settings(settings)
 
     def overloaded_session_factory(request, **kwargs):
@@ -151,7 +169,7 @@ def overload_redis_session_factory(settings, config):
 def start_session_cleaner(settings):
     '''
         When a session expires, we need to cleanup the session folder that was
-        created for it, but pyramid_redis_sessions has no builtin way to add
+        created for it, but pyramid_session_redis has no builtin way to add
         or register custom functions to do this.
         So we need to hook directly into the Redis publish/subscribe
         functionality.  Here we will look for expired key events.
@@ -203,12 +221,15 @@ def server_factory(global_config, host, port):
         # to allow access to socketio side from pyramid side
         app.application.registry['sio_ns'] = ns
         app.application.registry['goods_ns'] = goods_ns
-        #threads = int(app.application.registry.settings.get('waitress.threads', '4'))
+        # threads = int(
+        #     app.application.registry.settings.get('waitress.threads', '4')
+        # )
 
         app = socketio.WSGIApp(sio, app)
         pywsgi.WSGIServer((host, port), app,
                           handler_class=WebSocketHandler).serve_forever()
-        #waitress_serve(app, host=host, port=port, expose_tracebacks=True, threads=threads)
+        # waitress_serve(app, host=host, port=port,
+        #                expose_tracebacks=True, threads=threads)
 
     return serve
 

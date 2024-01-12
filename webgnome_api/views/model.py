@@ -78,7 +78,7 @@ def create_model(request):
     '''
         Creates a new model
     '''
-    log_prefix = 'req({0}): create_object():'.format(id(request))
+    log_prefix = 'req({0}): create_model():'.format(id(request))
     log.info('>>' + log_prefix)
 
     try:
