@@ -29,7 +29,7 @@ from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "0.9"
+__version__ = "0.9.1"
 
 logging.basicConfig()
 
