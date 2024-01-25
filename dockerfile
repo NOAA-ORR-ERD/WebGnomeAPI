@@ -28,6 +28,9 @@ RUN mamba install -y \
        --file webgnomeapi/conda_requirements.txt \
        --file webgnomeapi/libgoods/conda_requirements.txt 
 
+# Is the shell still operable at this point?
+RUN ls .
+
 # why is pygnome going away?
 RUN mamba list |grep -i gnome
 
