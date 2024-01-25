@@ -1,6 +1,7 @@
 """
     Main entry point
 """
+
 import os
 import shutil
 import logging
