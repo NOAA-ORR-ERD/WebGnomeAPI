@@ -31,6 +31,9 @@ RUN mkdir /config
 RUN cp /webgnomeapi/gnome-deploy/config/webgnomeapi/config.ini /config/config.ini
 RUN ln -s /config/config.ini /webgnomeapi/config.ini
 
+# why is pygnome going away?
+RUN conda list |grep -i gnome
+
 EXPOSE 9899
 VOLUME /config
 VOLUME /models
