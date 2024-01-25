@@ -1,5 +1,7 @@
-FROM pygnome
+ARG CI_COMMIT_BRANCH
+FROM registry.orr.noaa.gov/gnome/pygnome:${CI_COMMIT_BRANCH}
 
+# Args declared before the FROM need to be redeclared, don't delete this
 ARG CI_COMMIT_BRANCH
 RUN set
 

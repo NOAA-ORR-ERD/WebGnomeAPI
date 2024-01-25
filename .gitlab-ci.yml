@@ -86,8 +86,6 @@ build_temp_img:
     - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull registry.orr.noaa.gov/gnome/pygnome:$CI_COMMIT_BRANCH
-    - docker tag registry.orr.noaa.gov/gnome/pygnome:$CI_COMMIT_BRANCH pygnome
     - >
       docker build -f dockerfile
       --build-arg CI_COMMIT_BRANCH
