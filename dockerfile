@@ -19,12 +19,10 @@ COPY ./ /webgnomeapi/
 # why is pygnome going away?
 RUN conda list pygnome
 
-RUN conda install mamba
-
 RUN ls webgnomeapi
 RUN ls webgnomeapi/libgoods
 
-RUN mamba install -y \
+RUN conda install -y \
        --file webgnomeapi/conda_requirements.txt \
        --file webgnomeapi/libgoods/conda_requirements.txt 
 
