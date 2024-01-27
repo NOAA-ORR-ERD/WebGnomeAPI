@@ -27,7 +27,7 @@ RUN conda install -y \
 RUN conda list pygnome
 
 # regardless why, pygnome is gone at this point.  Reinstall. 
-RUN cd pygnome/py_gnome && pip install .
+RUN cd pygnome/py_gnome && python setup.py install
 
 RUN cd webgnomeapi/libgoods && pip install .
 RUN cd webgnomeapi && pip install .
