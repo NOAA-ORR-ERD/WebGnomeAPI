@@ -89,6 +89,7 @@ build_temp_img:
     - >
       docker build -f dockerfile
       --build-arg CI_COMMIT_BRANCH
+      --build-arg PYTHON_VER=$PYTHON_VER
       --no-cache
       -t registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
       .

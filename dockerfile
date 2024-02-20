@@ -1,18 +1,21 @@
 ARG CI_COMMIT_BRANCH
+ARG PYTHON_VER
 FROM registry.orr.noaa.gov/gnome/pygnome:${CI_COMMIT_BRANCH}
 
 # Args declared before the FROM need to be redeclared, don't delete this
 ARG CI_COMMIT_BRANCH
+ARG PYTHON_VER
 
 RUN yum update -y && yum install -y redis
 
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
 
+# Make sure we are using mamba...
 RUN conda install -n base conda-libmamba-solver
 RUN conda config --set solver libmamba
 
-RUN conda install -y \
+RUN conda install -y python=$PYTHON_VER \
         --file conda_requirements.txt \
         --file libgoods/conda_requirements.txt 
 
