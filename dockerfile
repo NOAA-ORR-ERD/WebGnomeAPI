@@ -9,6 +9,9 @@ RUN yum update -y && yum install -y redis
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
 
+RUN conda install -n base conda-libmamba-solver
+RUN conda config --set solver libmamba
+
 RUN conda install -y \
         --file conda_requirements.txt \
         --file libgoods/conda_requirements.txt 
