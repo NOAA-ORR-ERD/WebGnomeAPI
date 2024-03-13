@@ -36,10 +36,9 @@ In theory, you can install everything webgnomeapi needs with pip, except py_gnom
     pip install -r conda_requirements.txt
 
 
-
 To run the API, you also need a redis server. If you have one installed from a another source, that will work fine. If not, then you can use conda to get it::
 
-  conda install redis
+  conda install redis-server
 
 (or uncomment that line in the conda_requirements.txt file)
 
@@ -59,13 +58,26 @@ or::
 Testing the Server
 ------------------
 
-In order to run webgnomeapi, you need a redis server running first. redis can be installed with conda, or, on Linux, with the system package manager. Once installed, you should be able to run a redis server with::
+In order to run webgnomeapi, you need a redis server running first. redis can be installed with conda on the Mac, or, on Linux, with the system package manager.
+
+Windows: Installing redis on Windows can be a bit of a challenge. We have had success with these binaries:
+
+https://github.com/tporadowski/redis/releases
+
+
+Once installed, you should be able to run a redis server with::
 
   redis-server
 
 Once redis is running, you should be able to run the tests with::
 
   pytest webgnome_api/tests
+
+Windows: Installing redis on Windows can be a bit of a challenge. We have had success with these binaries:
+
+https://github.com/tporadowski/redis/releases
+
+Though they are no longer being maintained.
 
 
 Running the Server
