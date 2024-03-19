@@ -42,7 +42,7 @@ mover = Service(name='mover', path='/mover*obj_id', description="Mover API",
                 cors_policy=edited_cors_policy)
 
 implemented_types = ('gnome.movers.simple_mover.SimpleMover',
-                     #'gnome.movers.c_wind_movers.PointWindMover',
+                     'gnome.movers.c_wind_movers.PointWindMover',
                      'gnome.movers.random_movers.RandomMover',
                      'gnome.movers.random_movers.IceAwareRandomMover',
                      'gnome.movers.random_movers.RandomMover3D',
