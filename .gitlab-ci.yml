@@ -211,9 +211,10 @@ deploy_redis_dev:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
 
 stop_redis_dev:
   stage: deploy
@@ -269,11 +270,12 @@ deploy_proxy_dev:
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -p $PORT_MAPPING1 -p $PORT_MAPPING2
       -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      -v /etc/ssl/certs:/etc/ssl/certs
+      $IMAGE_TAG
 
 stop_proxy_dev:
   stage: deploy
@@ -318,10 +320,11 @@ deploy_api_dev:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -p $PORT_MAPPING
       -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
     - docker ps
     - docker logs $CONTAINER_NAME
 
@@ -379,9 +382,10 @@ deploy_redis_stage:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
 
 stop_redis_stage:
   stage: deploy
@@ -437,11 +441,12 @@ deploy_proxy_stage:
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -p $PORT_MAPPING1 -p $PORT_MAPPING2
       -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      -v /etc/ssl/certs:/etc/ssl/certs
+      $IMAGE_TAG
 
 stop_proxy_stage:
   stage: deploy
@@ -486,10 +491,11 @@ deploy_api_stage:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
+      docker run -d --rm --restart unless-stopped
+      --network $APP_NETWORK --name $CONTAINER_NAME
       -p $PORT_MAPPING
       -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
     - docker ps
     - docker logs $CONTAINER_NAME
 
@@ -547,9 +553,10 @@ deploy_redis_production:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
 
 stop_redis_production:
   stage: deploy
@@ -606,12 +613,13 @@ deploy_proxy_production:
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
       -p $PORT_MAPPING1 -p $PORT_MAPPING2
       -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
       -v $GNOME_TESTDATA_FOLDER:/usr/share/nginx/html/py_gnome_testdata/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      -v /etc/ssl/certs:/etc/ssl/certs
+      $IMAGE_TAG
 
 stop_proxy_production:
   stage: deploy
@@ -656,10 +664,11 @@ deploy_api_production:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
+      docker run -d --rm --restart unless-stopped
+      --network $APP_NETWORK --name $CONTAINER_NAME
       -p $PORT_MAPPING
       -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
+      $IMAGE_TAG
     - docker ps
     - docker logs $CONTAINER_NAME
 
@@ -701,8 +710,9 @@ deploy_docs_production:
     - docker pull $IMAGE_TAG
     - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
     - >
-      docker run -d --restart unless-stopped
-      --name $CONTAINER_NAME --network $APP_NETWORK $IMAGE_TAG
+      docker run -d --rm --restart unless-stopped
+      --name $CONTAINER_NAME --network $APP_NETWORK
+      $IMAGE_TAG
 
 stop_docs_production:
   stage: deploy
