@@ -209,7 +209,7 @@ deploy_redis_dev:
       docker volume create $DB_VOLUME
 
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
@@ -229,7 +229,7 @@ stop_redis_dev:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_proxy_dev:
   stage: deploy
@@ -254,7 +254,7 @@ deploy_proxy_dev:
       docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
       docker network create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
     - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
@@ -289,7 +289,7 @@ stop_proxy_dev:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_api_dev:
   stage: deploy
@@ -316,7 +316,7 @@ deploy_api_dev:
       docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
       docker volume create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
       -p $PORT_MAPPING
@@ -339,7 +339,7 @@ stop_api_dev:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 
 ###
@@ -377,7 +377,7 @@ deploy_redis_stage:
       docker volume inspect $DB_VOLUME >/dev/null 2>&1 ||
       docker volume create $DB_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
@@ -397,7 +397,7 @@ stop_redis_stage:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_proxy_stage:
   stage: deploy
@@ -422,7 +422,7 @@ deploy_proxy_stage:
       docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
       docker network create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
     - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
@@ -457,7 +457,7 @@ stop_proxy_stage:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_api_stage:
   stage: deploy
@@ -484,7 +484,7 @@ deploy_api_stage:
       docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
       docker volume create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
       -p $PORT_MAPPING
@@ -507,7 +507,7 @@ stop_api_stage:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 
 ###
@@ -545,7 +545,7 @@ deploy_redis_production:
       docker volume inspect $DB_VOLUME >/dev/null 2>&1 ||
       docker volume create $DB_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
       -v $DB_VOLUME:/data
@@ -565,7 +565,7 @@ stop_redis_production:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_proxy_production:
   stage: deploy
@@ -591,7 +591,7 @@ deploy_proxy_production:
       docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
       docker network create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
     - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
@@ -627,7 +627,7 @@ stop_proxy_production:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_api_production:
   stage: deploy
@@ -654,7 +654,7 @@ deploy_api_production:
       docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
       docker volume create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
       -p $PORT_MAPPING
@@ -677,7 +677,7 @@ stop_api_production:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 deploy_docs_production:
   stage: deploy
@@ -699,7 +699,7 @@ deploy_docs_production:
       docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
       docker network create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
     - >
       docker run -d --restart unless-stopped
       --name $CONTAINER_NAME --network $APP_NETWORK $IMAGE_TAG
@@ -718,7 +718,7 @@ stop_docs_production:
   variables:
     CONTAINER_NAME: pygnome_docs
   script:
-    - docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
 
 
 ###
