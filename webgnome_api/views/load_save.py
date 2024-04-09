@@ -4,6 +4,7 @@ Views for the model load/save operations.
 import os
 import logging
 import tempfile
+import shutil
 from threading import current_thread
 
 from pyramid.view import view_config
@@ -20,6 +21,8 @@ from webgnome_api.common.system_resources import list_files
 from webgnome_api.common.common_object import (clean_session_dir,
                                                get_persistent_dir)
 from webgnome_api.common.session_management import (init_session_objects,
+                                                    get_session_object,
+                                                    set_session_object,
                                                     set_active_model,
                                                     get_active_model,
                                                     acquire_session_lock)
@@ -162,12 +165,31 @@ download = Service(name='download', path='/download',
                    cors_policy=cors_policy)
 
 
+def cleanup_tempfile_callback(request):
+    """
+    Cleanup the temp file we created when downloading the model.  This should
+    be a file in zip format.
+    """
+    saveloc = get_session_object('saveloc', request)
+
+    if os.path.isfile(saveloc):
+        log.info(f'cleaning up temp file: {saveloc}')
+        os.remove(saveloc)
+    elif os.path.isdir(saveloc):
+        log.info(f'cleaning up temp directory: {saveloc}')
+        shutil.rmtree(saveloc, ignore_errors=True)
+
+    log.info('Finished cleaning up temp file')
+
+
 @download.get()
 def download_model(request):
     '''
         Here is where we save the active model as a zipfile and
         download it to the client
     '''
+    request.add_finished_callback(cleanup_tempfile_callback)
+
     my_model = get_active_model(request)
 
     if my_model:
@@ -176,6 +198,8 @@ def download_model(request):
         tf.close()
 
         _json, saveloc, _refs = my_model.save(saveloc=filename)
+        set_session_object(saveloc, request, obj_id='saveloc')
+
         response_filename = ('{0}.gnome'.format(my_model.name))
         response = FileResponse(saveloc, request=request,
                                 content_type='application/zip')

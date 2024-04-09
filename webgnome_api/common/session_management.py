@@ -67,13 +67,16 @@ def get_session_object(obj_id, request):
     return None if objects is None else objects.get(obj_id, None)
 
 
-def set_session_object(obj, request):
+def set_session_object(obj, request, obj_id=None):
     objects = get_session_objects(request)
 
-    try:
-        objects[obj.id] = obj
-    except AttributeError:
-        objects[id(obj)] = obj
+    if obj_id is not None:
+        objects[obj_id] = obj
+    else:
+        try:
+            objects[obj.id] = obj
+        except AttributeError:
+            objects[id(obj)] = obj
 
 
 def acquire_session_lock(request):

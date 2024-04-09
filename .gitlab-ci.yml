@@ -52,7 +52,7 @@ test_src:
     - yum install redis -y
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - mamba install -y --file conda_requirements.txt
+    - mamba install -y python=$PYTHON_VER --file conda_requirements.txt
                        --file conda_requirements_test.txt
                        --file libgoods/conda_requirements.txt
 
