@@ -89,7 +89,7 @@ def run_export_model(request):
     payload = ujson.loads(request.body)
     outpjson = payload['outputters']
     model_filename = payload['model_name']
-    td = tempfile.mkdtemp()
+    td = tempfile.mkdtemp(suffix='gnome.')
 
     for itm in list(outpjson.values()):
         itm['filename'] = os.path.join(td, itm['filename'])

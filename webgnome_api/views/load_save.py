@@ -7,7 +7,7 @@ import tempfile
 from threading import current_thread
 
 from pyramid.view import view_config
-from pyramid.response import Response, FileIter, FileResponse
+from pyramid.response import Response, FileResponse
 from pyramid.httpexceptions import (HTTPBadRequest,
                                     HTTPNotFound)
 
@@ -17,8 +17,7 @@ from gnome.persist import is_savezip_valid
 from gnome.model import Model
 
 from webgnome_api.common.system_resources import list_files
-from webgnome_api.common.common_object import (RegisterObject,
-                                               clean_session_dir,
+from webgnome_api.common.common_object import (clean_session_dir,
                                                get_persistent_dir)
 from webgnome_api.common.session_management import (init_session_objects,
                                                     set_active_model,
@@ -158,8 +157,10 @@ def activate_uploaded_model(request):
 
     return cors_response(request, Response('OK'))
 
+
 download = Service(name='download', path='/download',
                    cors_policy=cors_policy)
+
 
 @download.get()
 def download_model(request):
@@ -170,16 +171,16 @@ def download_model(request):
     my_model = get_active_model(request)
 
     if my_model:
-        tf = tempfile.NamedTemporaryFile()
+        tf = tempfile.NamedTemporaryFile(prefix='gnome.')
         filename = tf.name
         tf.close()
 
         _json, saveloc, _refs = my_model.save(saveloc=filename)
         response_filename = ('{0}.gnome'.format(my_model.name))
         response = FileResponse(saveloc, request=request,
-                            content_type='application/zip')
+                                content_type='application/zip')
         response.content_disposition = ("attachment; filename={0}"
-                                               .format(response_filename))
+                                        .format(response_filename))
         return response
     else:
         raise cors_response(request, HTTPNotFound('No Active Model!'))

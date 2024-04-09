@@ -28,6 +28,7 @@ implemented_types = ('gnome.outputters.outputter.Outputter',
                      'gnome.outputters.image.IceImageOutput',
                      'gnome.outputters.kmz.KMZOutput',
                      'gnome.outputters.shape.ShapeOutput',
+                     'gnome.outputters.erma_data_package.ERMADataPackageOutput',
                      'gnome.outputters.binary.BinaryOutput'
                      )
 

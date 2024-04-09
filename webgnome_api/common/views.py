@@ -9,6 +9,7 @@ import uuid
 import logging
 
 from threading import current_thread
+from string import Template
 
 from pyramid.settings import asbool
 from pyramid.interfaces import ISessionFactory
@@ -17,7 +18,10 @@ from pyramid.httpexceptions import (HTTPBadRequest,
                                     HTTPNotFound,
                                     HTTPInsufficientStorage,
                                     HTTPUnsupportedMediaType,
-                                    HTTPNotImplemented)
+                                    HTTPNotImplemented,
+                                    HTTPServerError,
+                                    _no_escape)
+from webob import html_escape as _html_escape
 
 from .system_resources import (get_free_space,
                                get_size_of_open_file,
@@ -46,6 +50,42 @@ cors_policy = {'credentials': True,
 log = logging.getLogger(__name__)
 
 web_ser_opts = {'raw_paths': False}
+
+
+class HTTPPythonError(HTTPServerError):
+    
+    code=525
+    title = 'Python Error'
+    explanation = 'A python error was caught while executing your request.'
+    body_template_obj = Template('{"error_type":"${error_type}", "message":"${message}", "traceback":"${traceback}"}')
+    
+    def __init__(self, error_instance, traceback=False, **kwargs):
+        super(HTTPPythonError, self).__init__(**kwargs)
+        self.error_type = error_instance.__class__.__name__
+        self.message = str(error_instance)
+        if traceback:
+            self.stacktrace = traceback.format_exc()
+        else:
+            self.stacktrace = None
+
+    def _json_formatter(self, title, status, explanation, error_type, message, stacktrace):
+        return ujson.dumps({'code': status, 'title': title, 'explanation': explanation, 'error_type': error_type, 'message': message, 'stacktrace': stacktrace})
+    
+    def prepare(self, environ):
+            body_tmpl = self.body_template_obj
+            args = {
+                'title': self.title,
+                'status': self.status,
+                'error_type': _no_escape(self.error_type),
+                'explanation': _html_escape(self.explanation),
+                'message': _html_escape(self.message),
+                'stacktrace': _no_escape(self.stacktrace),
+            }
+            body = self._json_formatter(**args)
+            if isinstance(body, str):
+                body = body.encode(self.charset if self.charset else 'UTF-8')
+            self.app_iter = [body]
+            self.body = body
 
 
 def can_persist(funct):
