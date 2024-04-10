@@ -164,7 +164,7 @@ def run_export_model(request):
                     pdb.post_mortem(sys.exc_info()[2])
                 raise
             finally:
-                log.info(f'cleaning up temp directory: {td}')
+                log.debug(f'cleaning up temp directory: {td}')
                 shutil.rmtree(td, ignore_errors=True)
 
         return cleanup

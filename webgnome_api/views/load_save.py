@@ -173,13 +173,13 @@ def cleanup_tempfile_callback(request):
     saveloc = get_session_object('saveloc', request)
 
     if os.path.isfile(saveloc):
-        log.info(f'cleaning up temp file: {saveloc}')
+        log.debug(f'cleaning up temp file: {saveloc}')
         os.remove(saveloc)
     elif os.path.isdir(saveloc):
-        log.info(f'cleaning up temp directory: {saveloc}')
+        log.debug(f'cleaning up temp directory: {saveloc}')
         shutil.rmtree(saveloc, ignore_errors=True)
 
-    log.info('Finished cleaning up temp file')
+    log.debug('Finished cleaning up temp file')
 
 
 @download.get()
