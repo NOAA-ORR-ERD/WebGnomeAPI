@@ -732,7 +732,7 @@ prune_session_folders_dev:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: dev-deployment
     url: https://gnome-dev.orr.noaa.gov
@@ -749,7 +749,7 @@ prune_tmp_files_dev:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: dev-deployment
     url: https://gnome-dev.orr.noaa.gov
@@ -767,7 +767,7 @@ prune_session_folders_stage:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: stage-deployment
     url: https://gnome-stage.orr.noaa.gov
@@ -784,7 +784,7 @@ prune_tmp_files_stage:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: stage-deployment
     url: https://gnome-stage.orr.noaa.gov
@@ -802,7 +802,7 @@ prune_session_folders_production:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: production-deployment
     url: https://gnome.orr.noaa.gov
@@ -819,7 +819,7 @@ prune_tmp_files_production:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
   environment:
     name: production-deployment
     url: https://gnome.orr.noaa.gov
