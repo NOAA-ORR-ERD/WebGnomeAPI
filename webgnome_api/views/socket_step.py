@@ -89,7 +89,7 @@ def run_export_model(request):
     payload = ujson.loads(request.body)
     outpjson = payload['outputters']
     model_filename = payload['model_name']
-    td = tempfile.mkdtemp()
+    td = tempfile.mkdtemp(suffix='gnome.')
 
     for itm in list(outpjson.values()):
         itm['filename'] = os.path.join(td, itm['filename'])
@@ -159,11 +159,13 @@ def run_export_model(request):
                                              end_filepath)
 
                     ns.emit('export_finished', end_basename, room=sid)
-
             except Exception:
                 if is_develop_mode(request.registry.settings):
                     pdb.post_mortem(sys.exc_info()[2])
                 raise
+            finally:
+                log.debug(f'cleaning up temp directory: {td}')
+                shutil.rmtree(td, ignore_errors=True)
 
         return cleanup
 

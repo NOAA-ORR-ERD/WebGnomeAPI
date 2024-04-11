@@ -3,7 +3,7 @@
 #    or use "source make_conda_environment.sh"
 
 
-PYTHON_VER=3.9
+PYTHON_VER=3.10
 
 # start with a new environment with the version of Python that you want:
 conda create -n gnome_test_$PYTHON_VER python=$PYTHON_VER

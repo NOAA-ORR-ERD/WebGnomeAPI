@@ -3,7 +3,9 @@
 # left behind by the WebGnomeAPI server.
 # We expect to run this from the base project folder
 
-days=14  # number of days since the folder was modified
+echo "Begin pruning the webgnomeapi session folders..."
+
+days=14  # number of days since the file/folder was modified
 base_folder=models/session
 
 num_folders=$(find $base_folder -maxdepth 1 -type d -mtime +$days |wc -l)
