@@ -2,7 +2,6 @@
     Main entry point
 """
 
-
 import os
 import shutil
 import logging
@@ -29,7 +28,7 @@ from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "0.9.1"
+__version__ = "1.0.0"
 
 logging.basicConfig()
 
@@ -60,7 +59,7 @@ supported_ocean_models = {
 
 supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
                         'GFS_1_2DEG': ['ucar-forecast-agg', ],
-                        #'GFS_1DEG': ['ucar-forecast-agg', ]
+                        # 'GFS_1DEG': ['ucar-forecast-agg', ]
                         }
 
 
