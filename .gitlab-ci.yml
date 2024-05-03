@@ -281,7 +281,7 @@ deploy_proxy_dev:
       /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
     - docker stop webgnome_api_loadbalancer && docker container rm --volumes
       webgnome_api_loadbalancer || true
-    - docker run -d --name webgnome_api_loadbalancer -v
+    - docker run -d --name webgnome_api_loadbalancer --restart unless-stopped -v
       $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
     - docker ps
 
