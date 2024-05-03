@@ -324,6 +324,7 @@ deploy_api_dev:
     CONTAINER_NAME: webgnome_api
     PORT_MAPPING: 80:80
     MODELS_VOLUME: webgnome_models
+    API_SCALE: 3
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
@@ -336,7 +337,8 @@ deploy_api_dev:
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --mount
-      src=$MODELS_VOLUME,dst=/webgnomeapi/models --replicas=40 $IMAGE_TAG
+      src=$MODELS_VOLUME,dst=/webgnomeapi/models --replicas=$API_SCALE
+      $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 
