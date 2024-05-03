@@ -283,6 +283,7 @@ deploy_proxy_dev:
       webgnome_api_loadbalancer || true
     - docker run -d --name webgnome_api_loadbalancer -v
       $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
+    - docker ps
 
 stop_proxy_dev:
   stage: deploy
