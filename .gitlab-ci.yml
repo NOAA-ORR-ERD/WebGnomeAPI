@@ -205,7 +205,8 @@ deploy_redis_dev:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $IMAGE_TAG
     - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME $IMAGE_TAG
+    - docker service create --name $CONTAINER_NAME --endpoint-mode dnsrr
+      $IMAGE_TAG
 
 stop_redis_dev:
   stage: deploy
@@ -263,14 +264,16 @@ deploy_proxy_dev:
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - docker service rm webgnome_api_loadbalancer || true
-    - docker service create --name webgnome_api_loadbalancer --mount
-      type=bind,src=$GNOME_DEPLOY_FOLDER/config/haproxy,dst=/usr/local/etc/haproxy:ro
+    - docker service create --name webgnome_api_loadbalancer --endpoint-mode
+      dnsrr --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy:ro
       haproxy:2.3
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME -p $PORT_MAPPING1 -p
       $PORT_MAPPING2 --mount
-      type=bind,src=$GNOME_DEPLOY_FOLDER/config/nginx,dst=/etc/nginx/ --mount
-      type=bind,src=/etc/ssl/certs,dst=/etc/ssl/certs $IMAGE_TAG
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
+      --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
+      $IMAGE_TAG
     - docker service ps
 
 stop_proxy_dev:
@@ -295,6 +298,7 @@ stop_proxy_dev:
 
 deploy_api_dev:
   stage: deploy
+  needs: [deploy_redis_dev]
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
@@ -325,8 +329,8 @@ deploy_api_dev:
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --mount
-      src=$MODELS_VOLUME,dst=/webgnomeapi/models --network $APP_NETWORK
-      --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
+      source=$MODELS_VOLUME,destination=/webgnomeapi/models --network
+      $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 
