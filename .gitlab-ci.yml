@@ -281,7 +281,8 @@ deploy_proxy_dev:
       /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
     - docker stop webgnome_api_loadbalancer && docker container rm --volumes
       webgnome_api_loadbalancer || true
-    - docker run -d --name webgnome_api_loadbalancer --restart unless-stopped -v
+    - docker run -d --name webgnome_api_loadbalancer --restart unless-stopped
+      --network $APP_NETWORK -v
       $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
     - docker ps
 
@@ -337,8 +338,8 @@ deploy_api_dev:
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --mount
-      src=$MODELS_VOLUME,dst=/webgnomeapi/models --endpoint-mode dnsrr
-      --replicas=$API_SCALE $IMAGE_TAG
+      src=$MODELS_VOLUME,dst=/webgnomeapi/models --network $APP_NETWORK
+      --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 
