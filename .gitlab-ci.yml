@@ -279,6 +279,8 @@ deploy_proxy_dev:
       unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
       $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
       /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+    - docker stop webgnome_api_loadbalancer && docker container rm --volumes
+      webgnome_api_loadbalancer || true
     - docker run -d --name webgnome_api_loadbalancer -v
       $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
 
@@ -300,6 +302,8 @@ stop_proxy_dev:
   script:
     - docker stop $CONTAINER_NAME && docker container rm --volumes
       $CONTAINER_NAME
+    - docker stop webgnome_api_loadbalancer && docker container rm
+      webgnome_api_loadbalancer
 
 deploy_api_dev:
   stage: deploy
