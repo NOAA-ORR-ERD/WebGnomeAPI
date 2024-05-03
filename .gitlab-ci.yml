@@ -206,7 +206,7 @@ deploy_redis_dev:
     - docker pull $IMAGE_TAG
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      --endpoint-mode dnsrr $IMAGE_TAG
+      $IMAGE_TAG
 
 stop_redis_dev:
   stage: deploy
@@ -265,8 +265,8 @@ deploy_proxy_dev:
     - ls -la /etc/ssl/certs/*
     - docker service rm webgnome_api_loadbalancer || true
     - docker service create --name webgnome_api_loadbalancer --network
-      $APP_NETWORK --endpoint-mode dnsrr --mount
-      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy:ro
+      $APP_NETWORK --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
       haproxy:2.3
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
@@ -274,7 +274,7 @@ deploy_proxy_dev:
       type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
       --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
       $IMAGE_TAG
-    - docker service ps
+    - docker service ls
 
 stop_proxy_dev:
   stage: deploy
@@ -319,11 +319,7 @@ deploy_api_dev:
     API_SCALE: 3
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
+    - docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
       create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
     - docker swarm init || true
