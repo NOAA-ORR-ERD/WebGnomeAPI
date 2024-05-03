@@ -200,6 +200,7 @@ deploy_redis_dev:
     IMAGE_TAG: redis:latest
     CONTAINER_NAME: redis
     DB_VOLUME: redisdata
+    GIT_STRATEGY: none
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $IMAGE_TAG
@@ -221,6 +222,7 @@ stop_redis_dev:
     action: stop
   variables:
     CONTAINER_NAME: redis
+    GIT_STRATEGY: none
   script:
     - docker stop $CONTAINER_NAME && docker container rm --volumes
       $CONTAINER_NAME
@@ -240,6 +242,7 @@ deploy_proxy_dev:
     on_stop: stop_proxy_dev
   variables:
     IMAGE_TAG: nginx:latest
+    GIT_STRATEGY: none
     CONTAINER_NAME: webgnome_proxy
     PORT_MAPPING1: 443:443
     PORT_MAPPING2: 80:80
@@ -283,6 +286,7 @@ stop_proxy_dev:
   environment:
     name: dev-deployment
     action: stop
+    GIT_STRATEGY: none
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
@@ -307,6 +311,7 @@ deploy_api_dev:
     CONTAINER_NAME: webgnome_api
     PORT_MAPPING: 80:80
     MODELS_VOLUME: webgnome_models
+    GIT_STRATEGY: none
     API_SCALE: 3
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
@@ -340,6 +345,7 @@ stop_api_dev:
     action: stop
   variables:
     CONTAINER_NAME: webgnome_api
+    GIT_STRATEGY: none
   script:
     - docker service rm $CONTAINER_NAME
 
