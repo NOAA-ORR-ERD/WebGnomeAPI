@@ -329,7 +329,7 @@ deploy_api_dev:
       create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
     - docker swarm init || true
-    - docker service rm $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --mount
       src=$MODELS_VOLUME,dst=/webgnomeapi/models --replicas=40 $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
