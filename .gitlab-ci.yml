@@ -246,12 +246,7 @@ deploy_proxy_dev:
     GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
@@ -267,11 +262,11 @@ deploy_proxy_dev:
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME -p $PORT_MAPPING1 -p
       $PORT_MAPPING2 --mount
-      src=$GNOME_DEPLOY_FOLDER/config/nginx,dst=/etc/nginx/ --mount
-      src=/etc/ssl/certs,dst=/etc/ssl/certs $IMAGE_TAG
+      type=bind,src=$GNOME_DEPLOY_FOLDER/config/nginx,dst=/etc/nginx/ --mount
+      type=bind,src=/etc/ssl/certs,dst=/etc/ssl/certs $IMAGE_TAG
     - docker service rm webgnome_api_loadbalancer || true
     - docker service create --name webgnome_api_loadbalancer --mount
-      src=$GNOME_DEPLOY_FOLDER/config/haproxy,dst=/usr/local/etc/haproxy:ro
+      type=bind,src=$GNOME_DEPLOY_FOLDER/config/haproxy,dst=/usr/local/etc/haproxy:ro
       haproxy:2.3
     - docker service ps
 
