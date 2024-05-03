@@ -337,7 +337,7 @@ deploy_api_dev:
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --mount
-      src=$MODELS_VOLUME,dst=/webgnomeapi/models --entrypoint-mode dnsrr
+      src=$MODELS_VOLUME,dst=/webgnomeapi/models --endpoint-mode dnsrr
       --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
