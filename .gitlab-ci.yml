@@ -202,19 +202,9 @@ deploy_redis_dev:
     DB_VOLUME: redisdata
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
-      $DB_VOLUME
-
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
-      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
+    - docker service rm $CONTAINER_NAME || true
+    - docker service create --name $CONTAINER_NAME $IMAGE_TAG
 
 stop_redis_dev:
   stage: deploy
@@ -274,17 +264,16 @@ deploy_proxy_dev:
     - ls -la $GNOME_DEPLOY_FOLDER
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
-      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
-      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
-      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
-    - docker stop webgnome_api_loadbalancer && docker container rm --volumes
-      webgnome_api_loadbalancer || true
-    - docker run -d --name webgnome_api_loadbalancer --restart unless-stopped
-      --network $APP_NETWORK -v
-      $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
-    - docker ps
+    - docker service rm $CONTAINER_NAME || true
+    - docker service create --name $CONTAINER_NAME -p $PORT_MAPPING1 -p
+      $PORT_MAPPING2 --mount
+      src=$GNOME_DEPLOY_FOLDER/config/nginx,dst=/etc/nginx/ --mount
+      src=/etc/ssl/certs,dst=/etc/ssl/certs $IMAGE_TAG
+    - docker service rm webgnome_api_loadbalancer || true
+    - docker service create --name webgnome_api_loadbalancer --mount
+      src=$GNOME_DEPLOY_FOLDER/config/haproxy,dst=/usr/local/etc/haproxy:ro
+      haproxy:2.3
+    - docker service ps
 
 stop_proxy_dev:
   stage: deploy
@@ -302,10 +291,8 @@ stop_proxy_dev:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - docker stop webgnome_api_loadbalancer && docker container rm
-      webgnome_api_loadbalancer
+    - docker service rm $CONTAINER_NAME
+    - docker service rm webgnome_api_loadbalancer
 
 deploy_api_dev:
   stage: deploy
