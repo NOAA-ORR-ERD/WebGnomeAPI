@@ -1,8 +1,7 @@
 variables:
-  PYTHON_VER: "3.10"
+  PYTHON_VER: '3.10'
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-
 
 # Ok, here is the strategy I believe we want for our pipeline.
 # - First, we test our sources.
@@ -20,7 +19,6 @@ variables:
 #       registry, but the solution provided by the GitLab docs cleans everything
 #       up, including the tag we want to keep.
 
-
 stages:
   - test_src
   - build_temp_img
@@ -36,9 +34,11 @@ services:
 test_src:
   stage: test_src
   rules:
-    - if: ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "production")
+    - if:
+        ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
+        $CI_COMMIT_BRANCH != "production")
       variables:
-         UPSTREAM_BRANCH: "develop"
+        UPSTREAM_BRANCH: 'develop'
     - if: $CI_PIPELINE_SOURCE == "pipelines"
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedules"
@@ -51,10 +51,10 @@ test_src:
     - conda install mamba
     - yum install redis -y
     - redis-server --daemonize yes
-    - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - mamba install -y python=$PYTHON_VER --file conda_requirements.txt
-                       --file conda_requirements_test.txt
-                       --file libgoods/conda_requirements.txt
+    - git clone --depth 1 -b develop
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+    - mamba install -y python=$PYTHON_VER --file conda_requirements.txt --file
+      conda_requirements_test.txt --file libgoods/conda_requirements.txt
 
     - pushd libgoods && pip install . && popd
     - pip install .
@@ -81,18 +81,17 @@ build_temp_img:
     - shell
     - build
   script:
-    - git clone --depth 1 -b develop https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+    - git clone --depth 1 -b develop
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
 
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
+    - git clone --depth 1 -b $CI_COMMIT_BRANCH
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker build -f dockerfile
-      --build-arg CI_COMMIT_BRANCH
-      --build-arg PYTHON_VER=$PYTHON_VER
-      --no-cache
-      -t registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-      .
+      docker build -f dockerfile --build-arg CI_COMMIT_BRANCH --build-arg
+      PYTHON_VER=$PYTHON_VER --no-cache -t
+      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp .
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
@@ -111,7 +110,7 @@ test_img:
     - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: ['/bin/bash', '-c']
   script:
     - cd /webgnomeapi
     - mamba install -y --file conda_requirements_test.txt
@@ -138,7 +137,8 @@ rename_temp_img:
       registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
       registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
     - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    - docker image rm registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
+    - docker image rm
+      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
 
 # Ok, this almost works, but there is a problem, in that /bin/reg will remove
 # the image and all tags associated with it, including the one we wanted to keep.
@@ -172,7 +172,6 @@ rename_temp_img:
 #      -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
 #      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
 
-
 ###
 ###
 ### Deployment tasks on gnome-dev.orr.noaa.gov
@@ -187,7 +186,9 @@ rename_temp_img:
 deploy_redis_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-dev
     - deploy
@@ -202,23 +203,25 @@ deploy_redis_dev:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 ||
-      docker volume create $DB_VOLUME
+      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
+      $DB_VOLUME
 
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
+      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
 
 stop_redis_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-dev
@@ -229,12 +232,15 @@ stop_redis_dev:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_proxy_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-dev
     - deploy
@@ -251,34 +257,37 @@ deploy_proxy_dev:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx
+    - git clone --depth 1 -b $CI_COMMIT_BRANCH
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
       $GNOME_DEPLOY_FOLDER
-      $GNOME_DEPLOY_FOLDER/config
+    - >
+      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
       $GNOME_DEPLOY_FOLDER/config/nginx
     - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-
     - ls -la $GNOME_DEPLOY_FOLDER
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
-      -p $PORT_MAPPING1 -p $PORT_MAPPING2
-      -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
+      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
+      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
+      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+    - docker run -d --name webgnome_api_loadbalancer -v
+      $GNOME_DEPLOY_FOLDER/config/haproxy:/usr/local/etc/haproxy:ro haproxy:2.3
 
 stop_proxy_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-dev
@@ -289,12 +298,15 @@ stop_proxy_dev:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_api_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-dev
     - deploy
@@ -305,30 +317,29 @@ deploy_api_dev:
   variables:
     IMAGE_TAG: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
     CONTAINER_NAME: webgnome_api
-    PORT_MAPPING: 9898:9898
+    PORT_MAPPING: 80:80
     MODELS_VOLUME: webgnome_models
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
-      docker volume create $MODELS_VOLUME
+      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
+      create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
-    - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
-      -p $PORT_MAPPING
-      -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
-    - docker ps
-    - docker logs $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME
+    - docker service create --name $CONTAINER_NAME --mount
+      src=$MODELS_VOLUME,dst=/webgnomeapi/models --replicas=40 $IMAGE_TAG
+    - docker service ps $CONTAINER_NAME
+    - docker service logs $CONTAINER_NAME
 
 stop_api_dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-dev
@@ -339,8 +350,7 @@ stop_api_dev:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
-
+    - docker service rm $CONTAINER_NAME
 
 ###
 ###
@@ -356,7 +366,9 @@ stop_api_dev:
 deploy_redis_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-stage
     - deploy
@@ -371,22 +383,24 @@ deploy_redis_stage:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 ||
-      docker volume create $DB_VOLUME
+      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
+      $DB_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
+      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
 
 stop_redis_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-stage
@@ -397,12 +411,15 @@ stop_redis_stage:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_proxy_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-stage
     - deploy
@@ -419,34 +436,35 @@ deploy_proxy_stage:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx
+    - git clone --depth 1 -b $CI_COMMIT_BRANCH
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
       $GNOME_DEPLOY_FOLDER
-      $GNOME_DEPLOY_FOLDER/config
+    - >
+      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
       $GNOME_DEPLOY_FOLDER/config/nginx
     - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-
     - ls -la $GNOME_DEPLOY_FOLDER
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
-      -p $PORT_MAPPING1 -p $PORT_MAPPING2
-      -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
+      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
+      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
+      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
 
 stop_proxy_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-stage
@@ -457,12 +475,15 @@ stop_proxy_stage:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_api_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   tags:
     - gnome-stage
     - deploy
@@ -478,25 +499,27 @@ deploy_api_stage:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
-      docker volume create $MODELS_VOLUME
+      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
+      create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
-      -p $PORT_MAPPING
-      -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
+      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME -p
+      $PORT_MAPPING -v $MODELS_VOLUME:/webgnomeapi/models --restart
+      unless-stopped $IMAGE_TAG
     - docker ps
     - docker logs $CONTAINER_NAME
 
 stop_api_stage:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~ /\b(push|merge_request_event|pipeline|schedule)\b/
+    - if:
+        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
+        /\b(push|merge_request_event|pipeline|schedule)\b/
   when: manual
   tags:
     - gnome-stage
@@ -507,8 +530,8 @@ stop_api_stage:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
-
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 ###
 ###
@@ -539,17 +562,17 @@ deploy_redis_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 ||
-      docker volume create $DB_VOLUME
+      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
+      $DB_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      -v $DB_VOLUME:/data
-      --restart unless-stopped $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
+      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
 
 stop_redis_production:
   stage: deploy
@@ -565,7 +588,8 @@ stop_redis_production:
   variables:
     CONTAINER_NAME: redis
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_proxy_production:
   stage: deploy
@@ -588,30 +612,29 @@ deploy_proxy_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx
+    - git clone --depth 1 -b $CI_COMMIT_BRANCH
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
       $GNOME_DEPLOY_FOLDER
-      $GNOME_DEPLOY_FOLDER/config
+    - >
+      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
       $GNOME_DEPLOY_FOLDER/config/nginx
     - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-
     - ls -la $GNOME_DEPLOY_FOLDER
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
     - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK
-      --restart unless-stopped
-      -p $PORT_MAPPING1 -p $PORT_MAPPING2
-      -v $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/
-      -v $GNOME_TESTDATA_FOLDER:/usr/share/nginx/html/py_gnome_testdata/
-      -v /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
+      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
+      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
+      $GNOME_TESTDATA_FOLDER:/usr/share/nginx/html/py_gnome_testdata/ -v
+      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
 
 stop_proxy_production:
   stage: deploy
@@ -627,7 +650,8 @@ stop_proxy_production:
   variables:
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_api_production:
   stage: deploy
@@ -648,18 +672,18 @@ deploy_api_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 ||
-      docker volume create $MODELS_VOLUME
+      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
+      create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME
-      -p $PORT_MAPPING
-      -v $MODELS_VOLUME:/webgnomeapi/models
-      --restart unless-stopped $IMAGE_TAG
+      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME -p
+      $PORT_MAPPING -v $MODELS_VOLUME:/webgnomeapi/models --restart
+      unless-stopped $IMAGE_TAG
     - docker ps
     - docker logs $CONTAINER_NAME
 
@@ -677,7 +701,8 @@ stop_api_production:
   variables:
     CONTAINER_NAME: webgnome_api
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 deploy_docs_production:
   stage: deploy
@@ -696,13 +721,14 @@ deploy_docs_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 ||
-      docker network create -d bridge $APP_NETWORK
+      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
+      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
     - >
-      docker run -d --restart unless-stopped
-      --name $CONTAINER_NAME --network $APP_NETWORK $IMAGE_TAG
+      docker run -d --restart unless-stopped --name $CONTAINER_NAME --network
+      $APP_NETWORK $IMAGE_TAG
 
 stop_docs_production:
   stage: deploy
@@ -718,15 +744,14 @@ stop_docs_production:
   variables:
     CONTAINER_NAME: pygnome_docs
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes $CONTAINER_NAME
-
+    - docker stop $CONTAINER_NAME && docker container rm --volumes
+      $CONTAINER_NAME
 
 ###
 ###
 ### Maintenance tasks
 ###
 ###
-
 
 prune_session_folders_dev:
   stage: maintenance
@@ -762,7 +787,6 @@ prune_tmp_files_dev:
   script:
     - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
 
-
 prune_session_folders_stage:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
@@ -796,7 +820,6 @@ prune_tmp_files_stage:
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
     - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
-
 
 prune_session_folders_production:
   stage: maintenance
