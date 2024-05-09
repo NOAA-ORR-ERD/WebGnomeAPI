@@ -31,7 +31,7 @@ from webgnome_api.common.views import (cors_policy,
 from webgnome_api import supported_ocean_models, supported_met_models
 
 try:
-    from libgoods import maps, api
+    from libgoods import maps, api, FileTooBigError
 except ImportError:
     print("libgoods package not available "
           "-- its functionality will not be there")
@@ -167,7 +167,7 @@ def get_goods_map(request):
             max_filesize=max_upload_size,
         )
 
-    except api.FileTooBigError:
+    except FileTooBigError:
         raise cors_response(request,
                             HTTPBadRequest('file is too big!  Max size = {}'
                                            .format(max_upload_size)))
@@ -226,7 +226,8 @@ def create_goods_request(request):
     surface_only = params.get('surface_only', True) not in ('false',
                                                             'False',
                                                             None)
-    cross_dateline = params['cross_dateline'] in ('Yes',)
+
+    cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
     tshift = params['tshift']
 
