@@ -226,7 +226,8 @@ def create_goods_request(request):
     surface_only = params.get('surface_only', True) not in ('false',
                                                             'False',
                                                             None)
-    cross_dateline = params['cross_dateline'] in ('Yes',)
+
+    cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
     tshift = params['tshift']
 

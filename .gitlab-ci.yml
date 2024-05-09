@@ -556,20 +556,13 @@ deploy_redis_production:
     IMAGE_TAG: redis:latest
     CONTAINER_NAME: redis
     DB_VOLUME: redisdata
+    GIT_STRATEGY: none
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
-      $DB_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
-      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
+    - docker service rm $CONTAINER_NAME || true
+    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
+      $IMAGE_TAG
 
 stop_redis_production:
   stage: deploy
@@ -584,6 +577,7 @@ stop_redis_production:
     action: stop
   variables:
     CONTAINER_NAME: redis
+    GIT_STRATEGY: none
   script:
     - docker stop $CONTAINER_NAME && docker container rm --volumes
       $CONTAINER_NAME
@@ -602,18 +596,14 @@ deploy_proxy_production:
   variables:
     IMAGE_TAG: nginx:latest
     CONTAINER_NAME: webgnome_proxy
+    GIT_STRATEGY: none
     PORT_MAPPING1: 443:443
     PORT_MAPPING2: 80:80
     GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
     GNOME_TESTDATA_FOLDER: /data/gnome_testdata
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
 
     - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
@@ -626,12 +616,20 @@ deploy_proxy_production:
     - ls -la $GNOME_DEPLOY_FOLDER
     - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
     - ls -la /etc/ssl/certs/*
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
-      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
-      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
-      $GNOME_TESTDATA_FOLDER:/usr/share/nginx/html/py_gnome_testdata/ -v
-      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
+    - docker service rm webgnome_api_loadbalancer || true
+    - docker service create --name webgnome_api_loadbalancer --network
+      $APP_NETWORK --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
+      haproxy:2.3
+    - docker service rm $CONTAINER_NAME || true
+    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
+      $PORT_MAPPING1 -p $PORT_MAPPING2 --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
+      --mount
+      type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
+      --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
+      $IMAGE_TAG
+    - docker service ls
 
 stop_proxy_production:
   stage: deploy
@@ -645,13 +643,15 @@ stop_proxy_production:
     name: production-deployment
     action: stop
   variables:
+    GIT_STRATEGY: none
     CONTAINER_NAME: webgnome_proxy
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME
+    - docker service rm webgnome_api_loadbalancer
 
 deploy_api_production:
   stage: deploy
+  needs: [deploy_redis_production]
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
   tags:
@@ -665,24 +665,20 @@ deploy_api_production:
     IMAGE_TAG: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
     CONTAINER_NAME: webgnome_api
     PORT_MAPPING: 9898:9898
+    GIT_STRATEGY: none
+    API_SCALE: 40
     MODELS_VOLUME: webgnome_models
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
+    - docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
       create $MODELS_VOLUME
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME -p
-      $PORT_MAPPING -v $MODELS_VOLUME:/webgnomeapi/models --restart
-      unless-stopped $IMAGE_TAG
-    - docker ps
-    - docker logs $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME || true
+    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
+      --mount source $MODELS_VOLUME,destination=/webgnomeapi/models
+      --endpoint-mode dsnrr --replicas=$API_SCALE $IMAGE_TAG
+    - docker service ps $CONTAINER_NAME
+    - docker service logs $CONTAINER_NAME
 
 stop_api_production:
   stage: deploy
@@ -697,9 +693,9 @@ stop_api_production:
     action: stop
   variables:
     CONTAINER_NAME: webgnome_api
+    GIT_STRATEGY: none
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME
 
 deploy_docs_production:
   stage: deploy
@@ -717,15 +713,10 @@ deploy_docs_production:
     CONTAINER_NAME: pygnome_docs
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
     - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --restart unless-stopped --name $CONTAINER_NAME --network
-      $APP_NETWORK $IMAGE_TAG
+    - docker service rm $CONTAINER_NAME
+    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
+      $IMAGE_TAG
 
 stop_docs_production:
   stage: deploy
@@ -740,9 +731,9 @@ stop_docs_production:
     action: stop
   variables:
     CONTAINER_NAME: pygnome_docs
+    GIT_STRATEGY: none
   script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME
 
 ###
 ###
