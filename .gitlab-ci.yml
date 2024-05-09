@@ -714,7 +714,7 @@ deploy_docs_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME
+    - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
       $IMAGE_TAG
 
