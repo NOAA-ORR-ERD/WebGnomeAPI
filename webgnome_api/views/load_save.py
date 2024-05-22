@@ -88,8 +88,8 @@ def upload_model(request):
 
         log.info('setting active model...')
         set_active_model(request, new_model.id)
-    except Exception as e:
-        raise cors_exception(request, HTTPPythonError(e), with_stacktrace=True)
+    except Exception:
+        raise cors_exception(request, HTTPBadRequest, with_stacktrace=True)
     finally:
         session_lock.release()
         log.info('  session lock released (sess:{}, thr_id: {})'
