@@ -100,7 +100,6 @@ def get_file(request):
 
     if filename:
         filename = ujson.loads(filename)
-        breakpoint()
         filepath = search_registered_file(request, filename, obj_id)
         if filepath is None:
             return cors_exception(
