@@ -1,7 +1,6 @@
 """
 The base URI for our server.
 """
-from email import message_from_string
 import importlib.metadata
 from pyramid.response import Response
 from cornice import Service
@@ -16,13 +15,10 @@ def get_package_info_response(request):
     body = ('<html>'
             '    <body>'
             '        <h1>WebGnome API Server Package Versions</h1>'
-            '        <p>{}</p>'
-            '        <p>{}</p>'
+            f'        <p>{get_pkg_info_table("webgnome_api")}</p>'
+            f'        <p>{get_pkg_info_table("gnome")}</p>'
             '    </body>'
             '</html>'
-            .format(get_pkg_info_table('webgnome_api'),
-                    get_pkg_info_table('pygnome'),
-                    )
             )
 
     response = Response(content_type='text/html', body=body)

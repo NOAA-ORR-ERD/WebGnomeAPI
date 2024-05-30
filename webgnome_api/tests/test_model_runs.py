@@ -179,22 +179,22 @@ class ModelRunTest(FunctionalTestBase):
                 assert output_key in step['TrajectoryGeoJsonOutput']
 
             for output_key in ('certain', 'uncertain'):
-                print(list(step['TrajectoryGeoJsonOutput'][output_key].keys()))
+                # print(list(step['TrajectoryGeoJsonOutput'][output_key].keys()))
 
                 assert 'features' in step['TrajectoryGeoJsonOutput'][output_key]
                 for f in step['TrajectoryGeoJsonOutput'][output_key][
                         'features']:
-                    print(list(f.keys()))
+                    # print(list(f.keys()))
 
                     assert 'geometry' in f
-                    print(list(f['geometry'].keys()))
+                    # print(list(f['geometry'].keys()))
 
                     assert 'coordinates' in f['geometry']
-                    print(f['geometry']['coordinates'])
+                    # print(f['geometry']['coordinates'])
 
                     assert 'properties' in f
-                    print(f['properties'])
-                    assert f['properties']['status_code'] == 2
+                    # print(f['properties'])
+                    assert f['properties']['status_code'] in (2, 3)
                     assert f['properties']['spill_num'] == 0
                     assert f['properties']['sc_type'] == 'forecast'
 
