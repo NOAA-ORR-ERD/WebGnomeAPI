@@ -179,7 +179,7 @@ def unregister_exportable_file(request, basename):
 def search_registered_file(request, basename, obj_id=None):
     # If an obj_id is provided, if the object is registered in the session
     # then we can search for possible filenames in the object schema
-    if obj_id is not None:
+    if obj_id is not None and obj_id != '':
         obj = get_session_object(obj_id, request)
         if obj is not None:
             potential_fn_attrs = obj._schema().get_nodes_by_attr('isdatafile')
