@@ -165,15 +165,17 @@ def cleanup_tempfile_callback(request):
     be a file in zip format.
     """
     saveloc = get_session_object('saveloc', request)
+    try:
+        if os.path.isfile(saveloc):
+            log.debug(f'cleaning up temp file: {saveloc}')
+            os.remove(saveloc)
+        elif os.path.isdir(saveloc):
+            log.debug(f'cleaning up temp directory: {saveloc}')
+            shutil.rmtree(saveloc, ignore_errors=True)
 
-    if os.path.isfile(saveloc):
-        log.debug(f'cleaning up temp file: {saveloc}')
-        os.remove(saveloc)
-    elif os.path.isdir(saveloc):
-        log.debug(f'cleaning up temp directory: {saveloc}')
-        shutil.rmtree(saveloc, ignore_errors=True)
-
-    log.debug('Finished cleaning up temp file')
+        log.debug('Finished cleaning up temp file')
+    except Exception as e:
+        log.error(f'Error cleaning up temp file: {e}')
 
 
 @download.get()
