@@ -153,9 +153,9 @@ def register_exportable_file(request, basename, filepath):
     file_reg = session['registered_files']
     if basename in file_reg:
         if filepath != file_reg[basename]:
-            log.warning('Overwriting registered file: {0}'.format(basename))
-            log.warning('Old Filepath: {0}'.format(file_reg[basename]))
-            log.warning('New Filepath: {0}'.format(filepath))
+            log.info('Overwriting registered file: {0}'.format(basename))
+            log.info('Old Filepath: {0}'.format(file_reg[basename]))
+            log.info('New Filepath: {0}'.format(filepath))
     file_reg[basename] = filepath
 
     session['registered_files'] = file_reg
