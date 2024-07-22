@@ -6,9 +6,7 @@ FROM registry.orr.noaa.gov/gnome/pygnome:${CI_COMMIT_BRANCH}
 ARG CI_COMMIT_BRANCH
 ARG PYTHON_VER
 
-RUN apt-get update
-RUN apt-get upgrade -y
-RUN apt-get install -y redis
+RUN yum update -y && yum install -y redis
 
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
