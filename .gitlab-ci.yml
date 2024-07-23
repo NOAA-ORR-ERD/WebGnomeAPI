@@ -110,7 +110,7 @@ test_img:
     - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: [""]
   script:
     - cd /webgnomeapi
     - mamba install -y --file conda_requirements_test.txt
