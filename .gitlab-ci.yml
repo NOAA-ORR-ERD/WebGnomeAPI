@@ -38,7 +38,7 @@ test_src:
         ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
         $CI_COMMIT_BRANCH != "production")
       variables:
-        UPSTREAM_BRANCH: 'develop'
+        UPSTREAM_BRANCH: "develop"
     - if: $CI_PIPELINE_SOURCE == "pipelines"
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedules"
@@ -110,7 +110,7 @@ test_img:
     - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: ['/bin/bash', '-c']
+    entrypoint: ["/bin/bash", "-c"]
   script:
     - cd /webgnomeapi
     - mamba install -y --file conda_requirements_test.txt
