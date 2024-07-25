@@ -64,6 +64,7 @@ Windows: Installing redis on Windows can be a bit of a challenge. We have had su
 
 https://github.com/tporadowski/redis/releases
 
+Reboot after installing the binaries in order to get redis running in the background.  
 
 Once installed, you should be able to run a redis server with::
 
