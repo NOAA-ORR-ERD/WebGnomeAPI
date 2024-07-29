@@ -6,7 +6,9 @@ FROM registry.orr.noaa.gov/gnome/pygnome:${CI_COMMIT_BRANCH}
 ARG CI_COMMIT_BRANCH
 ARG PYTHON_VER
 
-RUN yum update -y && yum install -y redis
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y redis
 
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
@@ -19,8 +21,8 @@ RUN conda install -y python=$PYTHON_VER \
         --file conda_requirements.txt \
         --file libgoods/conda_requirements.txt 
 
-RUN cd libgoods && pip install .
-RUN pip install .
+RUN cd libgoods && python -m pip install ./
+RUN python -m pip install ./
 
 RUN python setup.py compilejson
 
