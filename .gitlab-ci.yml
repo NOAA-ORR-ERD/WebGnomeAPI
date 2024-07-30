@@ -847,7 +847,7 @@ prune_tmp_files_production:
   stage: maintenance
   when: manual
   script:
-    - docker system prune -f -a --volumes stage: maintenance
+    - docker system prune -f -a --volumes
 
 docker prod tidy:
   extends: '.docker tidy'
