@@ -1,5 +1,5 @@
 # script / instructions for building a conda environment for webgnomeapi
-# NOTE: this won't work write if run as a script -- copy and paste the commands to your command line.
+# NOTE: this won't work right if run as a script -- copy and paste the commands to your command line.
 #    or use "source make_conda_environment.sh"
 
 
