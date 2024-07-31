@@ -675,8 +675,8 @@ deploy_api_production:
     - docker pull $IMAGE_TAG
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models
-      --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
+      --mount source $MODELS_VOLUME,destination=/webgnomeapi/models
+      --endpoint-mode dsnrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 
@@ -714,7 +714,7 @@ deploy_docs_production:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME || true
+    - docker service rm $CONTAINER_NAME
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
       $IMAGE_TAG
 
@@ -842,3 +842,46 @@ prune_tmp_files_production:
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
     - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+
+.docker tidy:
+  stage: maintenance
+  when: manual
+  script:
+    - docker system prune -f -a --volumes
+
+docker prod tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - production
+  environment:
+    name: production-deployment
+    url: https://gnome.orr.noaa.gov
+  tags:
+    - deploy
+    - gnome-prod
+
+docker dev tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - develop
+  environment:
+    name: dev-deployment
+    url: https://gnome-dev.orr.noaa.gov
+  tags:
+    - deploy
+    - gnome-dev
+
+docker stage tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - main
+  environment:
+    name: stage-deployment
+    url: https://gnome-stage.orr.noaa.gov
+  tags:
+    - deploy
+    - gnome-stage
+
