@@ -20,6 +20,7 @@ variables:
 #       up, including the tag we want to keep.
 
 stages:
+  - util
   - test_src
   - build_temp_img
   - test_img
@@ -844,7 +845,7 @@ prune_tmp_files_production:
     - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
 
 .docker tidy:
-  stage: maintenance
+  stage: util
   when: manual
   script:
     - docker system prune -f -a --volumes
@@ -854,9 +855,6 @@ docker prod tidy:
   only: 
     refs:
       - production
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
   tags:
     - deploy
     - gnome-prod
@@ -866,9 +864,6 @@ docker dev tidy:
   only: 
     refs:
       - develop
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
   tags:
     - deploy
     - gnome-dev
@@ -878,9 +873,6 @@ docker stage tidy:
   only: 
     refs:
       - main
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
   tags:
     - deploy
     - gnome-stage
