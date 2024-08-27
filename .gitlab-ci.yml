@@ -20,6 +20,7 @@ variables:
 #       up, including the tag we want to keep.
 
 stages:
+  - util
   - test_src
   - build_temp_img
   - test_img
@@ -38,7 +39,7 @@ test_src:
         ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
         $CI_COMMIT_BRANCH != "production")
       variables:
-        UPSTREAM_BRANCH: 'develop'
+        UPSTREAM_BRANCH: "develop"
     - if: $CI_PIPELINE_SOURCE == "pipelines"
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedules"
@@ -49,7 +50,7 @@ test_src:
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   script:
     - conda install mamba
-    - yum install redis -y
+    - apt-get install -y redis
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
@@ -110,7 +111,7 @@ test_img:
     - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: ['/bin/bash', '-c']
+    entrypoint: [""]
   script:
     - cd /webgnomeapi
     - mamba install -y --file conda_requirements_test.txt
@@ -842,3 +843,37 @@ prune_tmp_files_production:
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
     - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+
+.docker tidy:
+  stage: util
+  when: manual
+  script:
+    - docker system prune -f -a --volumes
+
+docker prod tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - production
+  tags:
+    - deploy
+    - gnome-prod
+
+docker dev tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - develop
+  tags:
+    - deploy
+    - gnome-dev
+
+docker stage tidy:
+  extends: '.docker tidy'
+  only: 
+    refs:
+      - main
+  tags:
+    - deploy
+    - gnome-stage
+

@@ -64,6 +64,7 @@ Windows: Installing redis on Windows can be a bit of a challenge. We have had su
 
 https://github.com/tporadowski/redis/releases
 
+Reboot after installing the binaries in order to get redis running in the background.  
 
 Once installed, you should be able to run a redis server with::
 
@@ -203,7 +204,5 @@ This is key -- as libgoods is under active development, we will need to keep upd
 NOTE: we should have this repo configured so that you get the right branch of the libgoods submodule, but we'll need to make sure. e.g. if the webgnomeapi repo is on the develop branch, it should pull the develop branch from libgoods as well.
 
 NOTE2: It seems, at least by dewfault, that the submodule is checkout in in "detached HEAD" mode. So you do not want to make changes to libgoods directly in that module, but rather, make any changes in the libgoods repo itself, push them, and then run ``git submodule update --remote``.
-
-
 
 
