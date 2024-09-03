@@ -757,7 +757,7 @@ prune_session_folders_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_dev:
   stage: maintenance
@@ -774,7 +774,7 @@ prune_tmp_files_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_session_folders_stage:
   stage: maintenance
@@ -791,7 +791,7 @@ prune_session_folders_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_stage:
   stage: maintenance
@@ -808,7 +808,7 @@ prune_tmp_files_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_session_folders_production:
   stage: maintenance
@@ -825,7 +825,7 @@ prune_session_folders_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_production:
   stage: maintenance
@@ -842,7 +842,7 @@ prune_tmp_files_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 .docker tidy:
   stage: util
