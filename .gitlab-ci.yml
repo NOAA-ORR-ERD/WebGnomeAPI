@@ -189,7 +189,7 @@ deploy_redis_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -214,7 +214,7 @@ stop_redis_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -234,7 +234,7 @@ deploy_proxy_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -282,7 +282,7 @@ stop_proxy_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -303,7 +303,7 @@ deploy_api_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -336,7 +336,7 @@ stop_api_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -366,7 +366,7 @@ deploy_redis_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -398,7 +398,7 @@ stop_redis_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
@@ -417,7 +417,7 @@ deploy_proxy_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -462,7 +462,7 @@ stop_proxy_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
@@ -481,7 +481,7 @@ deploy_api_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -517,7 +517,7 @@ stop_api_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
