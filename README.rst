@@ -48,11 +48,13 @@ Installing the server
 
 Installing the server from code can be done the usual way for a python package::
 
+  pip install ./
+
+for a "normal" install, or::
+
   pip install -e ./
 
-or::
-
-  python setup.py develop
+for an "editable" install
 
 
 Testing the Server
@@ -74,11 +76,6 @@ Once redis is running, you should be able to run the tests with::
 
   pytest webgnome_api/tests
 
-Windows: Installing redis on Windows can be a bit of a challenge. We have had success with these binaries:
-
-https://github.com/tporadowski/redis/releases
-
-Though they are no longer being maintained.
 
 
 Running the Server
@@ -92,6 +89,16 @@ webgnomeapi is a Pyramid application that can be run with the paste uwsgi server
 
   pserve config-example.ini
 
+That will strat up the server, and it will be available on:
+
+http://localhost:9899/
+
+That's set in the config-example.ini::
+
+    [server:main]
+    use = egg:webgnome_api#srv
+    host = localhost
+    port = 9899
 
 Deployment Issues
 =================
