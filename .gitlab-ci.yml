@@ -113,7 +113,7 @@ test_img:
     entrypoint: [""]
   script:
     - cd /webgnomeapi
-    - mamba install -y --file conda_requirements_test.txt
+    - conda install -y --file conda_requirements_test.txt
     - redis-server --daemonize yes
     - pytest webgnome_api/tests
 
