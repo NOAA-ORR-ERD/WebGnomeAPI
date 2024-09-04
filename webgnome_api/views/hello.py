@@ -15,8 +15,13 @@ def get_package_info_response(request):
     body = ('<html>'
             '    <body>'
             '        <h1>WebGnome API Server Package Versions</h1>'
-            f'        <p>{get_pkg_info_table("webgnome_api")}</p>'
-            f'        <p>{get_pkg_info_table("gnome")}</p>'
+            f'         <p>{get_pkg_info_table("webgnome_api")}</p>'
+            f'         <p>{get_pkg_info_table("gnome")}</p>'
+            f'         <p>{get_pkg_info_table("libgoods")}</p>'
+            f'         <p>{get_pkg_info_table("adios_db")}</p>'
+            f'         <p>{get_pkg_info_table("pynucos")}</p>'
+            # f'       <h1>Conda Packages</h1>'
+            # f'         {get_conda_packages()}\n'
             '    </body>'
             '</html>'
             )
@@ -30,14 +35,18 @@ def get_pkg_info_table(package):
     """
     Updated to use importlib.metadata
     """
-    msg_dict = importlib.metadata.metadata(package).json
-
     header_fields = [package]
-    rows = []
-    # for k in ('Name', 'Version', 'Branch', 'LastUpdate', 'Author'):
-    for k in ('name', 'version', 'author'):
-        if k in msg_dict:
-            rows.append([k + ':', msg_dict[k]])
+    try:
+        msg_dict = importlib.metadata.metadata(package).json
+
+        rows = []
+        # for k in ('Name', 'Version', 'Branch', 'LastUpdate', 'Author'):
+        for k in ('name', 'version', 'author'):
+            if k in msg_dict:
+                rows.append([k + ':', msg_dict[k]])
+    except  importlib.metadata.PackageNotFoundError:
+        rows = [[f"name: {package}"], ["version: not installed"], ["author: unknown"]]
+
 
     return to_table(header_fields, rows)
 
@@ -62,3 +71,18 @@ def to_table_header(item):
 
 def to_table_data(item):
     return '<td>{}</td>'.format(item)
+
+def get_conda_packages():
+    # neither of tehse work -- conda not installed
+    # there should be a way to make sure we have a package listing available though.
+    # try:
+    #     import conda.cli.python_api as capi
+    #     pkgs, _, _ = capi.run_command('list')
+    # except ImportError:
+    #     pkgs = "conda not installed on the server"
+    import subprocess
+    pkgs = subprocess.run("conda list", capture_output=True)
+
+    html = f"<pre>\n{pkgs}\n</pre>"
+    return html
+
