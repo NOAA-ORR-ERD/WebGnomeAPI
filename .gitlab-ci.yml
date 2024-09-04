@@ -54,9 +54,10 @@ test_src:
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - git clone --depth 1 -b develop
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/pygnome.git
-
+    #- git clone --depth 1 -b develop
+    #  https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/pygnome.git
+    - pwd
+    - ls -la
     - mamba install -y python=$PYTHON_VER --file conda_requirements.txt
       --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
       --file pygnome/py_gnome/conda_requirements.txt
