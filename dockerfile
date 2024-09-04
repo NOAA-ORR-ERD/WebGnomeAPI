@@ -14,17 +14,18 @@ COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
 
 # Make sure we are using mamba...
-RUN conda install -n base conda-libmamba-solver
-RUN conda config --set solver libmamba
+# RUN conda install -n base conda-libmamba-solver
+# RUN conda config --set solver libmamba
 
 RUN conda install -y python=$PYTHON_VER \
         --file conda_requirements.txt \
-        --file libgoods/conda_requirements.txt 
+        --file libgoods/conda_requirements.txt
+        --file /pygnome/py_gnome/conda_requirements.txt
 
 RUN cd libgoods && python -m pip install ./
 RUN python -m pip install ./
 
-RUN python setup.py compilejson
+# RUN python setup.py compilejson
 
 RUN mkdir /config
 RUN cp gnome-deploy/config/webgnomeapi/config.ini /config/config.ini
