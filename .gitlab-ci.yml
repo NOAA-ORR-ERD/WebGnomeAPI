@@ -49,14 +49,13 @@ test_src:
     - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   script:
-    - conda install mamba
     - apt-get install -y redis
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - mamba install -y python=$PYTHON_VER --file conda_requirements.txt --file
-      conda_requirements_test.txt --file libgoods/conda_requirements.txt
-
+    - conda install -y python=$PYTHON_VER --file conda_requirements.txt
+      --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
+      --file /pygnome/py_gnome/conda_requirements.txt
     - pushd libgoods && pip install . && popd
     - pip install .
 
@@ -114,7 +113,7 @@ test_img:
     entrypoint: [""]
   script:
     - cd /webgnomeapi
-    - mamba install -y --file conda_requirements_test.txt
+    - conda install -y --file conda_requirements_test.txt
     - redis-server --daemonize yes
     - pytest webgnome_api/tests
 
