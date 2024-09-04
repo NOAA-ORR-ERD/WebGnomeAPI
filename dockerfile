@@ -19,7 +19,7 @@ WORKDIR /webgnomeapi/
 
 RUN conda install -y python=$PYTHON_VER \
         --file conda_requirements.txt \
-        --file libgoods/conda_requirements.txt
+        --file libgoods/conda_requirements.txt \
         --file /pygnome/py_gnome/conda_requirements.txt
 
 RUN cd libgoods && python -m pip install ./
