@@ -180,8 +180,12 @@ class WebgnomeNamespace(socketio.Namespace):
                 if (hasattr(logrecord, 'session_hash') and
                         logrecord.session_hash == sess_hash and
                         'server' not in logrecord.name):
-                    msg_obj = (pattern.match(formatter.format(logrecord))
-                               .groupdict())
+                    try:
+                        msg_obj = (pattern.match(formatter.format(logrecord))
+                                    .groupdict())
+                    except AttributeError:
+                        self.emit('log', {'message': 'log message error'},)
+                        return False
                     del msg_obj['session_hash']
                     self.emit('log', msg_obj, sid)
 

@@ -205,5 +205,3 @@ NOTE: we should have this repo configured so that you get the right branch of th
 
 NOTE2: It seems, at least by dewfault, that the submodule is checkout in in "detached HEAD" mode. So you do not want to make changes to libgoods directly in that module, but rather, make any changes in the libgoods repo itself, push them, and then run ``git submodule update --remote``.
 
-
-
