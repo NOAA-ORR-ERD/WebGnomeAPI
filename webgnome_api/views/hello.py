@@ -2,6 +2,7 @@
 The base URI for our server.
 """
 import importlib.metadata
+from pathlib import Path
 from pyramid.response import Response
 from cornice import Service
 
@@ -20,8 +21,8 @@ def get_package_info_response(request):
             f'         <p>{get_pkg_info_table("libgoods")}</p>'
             f'         <p>{get_pkg_info_table("adios_db")}</p>'
             f'         <p>{get_pkg_info_table("pynucos")}</p>'
-            # f'       <h1>Conda Packages</h1>'
-            # f'         {get_conda_packages()}\n'
+            f'       <h1>Conda Environment</h1>'
+            f'         {get_conda_environment()}\n'
             '    </body>'
             '</html>'
             )
@@ -72,7 +73,24 @@ def to_table_header(item):
 def to_table_data(item):
     return '<td>{}</td>'.format(item)
 
-def get_conda_packages():
+
+def get_conda_environment():
+    '''
+    If there is a conda environment file in place, it will be read and
+    return in a <pre> tag.
+    '''
+    envpath = Path(__file__).parent / "deployed_environment.yaml"
+
+    try:
+        with open(envpath) as envfile:
+            contents = envfile.read()
+    except: # I don't like a bare except, but really,
+            # if anything goes wrong, we don't want to barf out.
+        contents = "Deployed Environment file could not be read"
+    html = f"<pre>\n{contents}\n</pre>"
+
+    return html
+
     # neither of tehse work -- conda not installed
     # there should be a way to make sure we have a package listing available though.
     # try:
@@ -80,9 +98,9 @@ def get_conda_packages():
     #     pkgs, _, _ = capi.run_command('list')
     # except ImportError:
     #     pkgs = "conda not installed on the server"
-    import subprocess
-    pkgs = subprocess.run("conda list", capture_output=True)
+    # import subprocess
+    # pkgs = subprocess.run("conda list", capture_output=True)
 
-    html = f"<pre>\n{pkgs}\n</pre>"
-    return html
+    # html = f"<pre>\n{pkgs}\n</pre>"
+    # return html
 
