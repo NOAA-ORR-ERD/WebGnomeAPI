@@ -49,18 +49,18 @@ test_src:
     - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   script:
-    - conda install mamba
     - apt-get install -y redis
     - redis-server --daemonize yes
     - git clone --depth 1 -b develop
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-    - mamba install -y python=$PYTHON_VER --file conda_requirements.txt --file
-      conda_requirements_test.txt --file libgoods/conda_requirements.txt
-
+    - conda install -y python=$PYTHON_VER --file conda_requirements.txt
+      --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
+      --file /pygnome/py_gnome/conda_requirements.txt
     - pushd libgoods && pip install . && popd
     - pip install .
 
-    - python setup.py compilejson
+    - python setup.py compilejson # is this duplicating what happens already in the setup.py?
+    - conda env export > webgnome_api/views/deployed_environment.yaml
     - pytest webgnome_api/tests
     - conda list > conda_packages.txt
   artifacts:
@@ -114,7 +114,7 @@ test_img:
     entrypoint: [""]
   script:
     - cd /webgnomeapi
-    - mamba install -y --file conda_requirements_test.txt
+    - conda install -y --file conda_requirements_test.txt
     - redis-server --daemonize yes
     - pytest webgnome_api/tests
 
@@ -189,7 +189,7 @@ deploy_redis_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -214,7 +214,7 @@ stop_redis_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -234,7 +234,7 @@ deploy_proxy_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -282,7 +282,7 @@ stop_proxy_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -303,7 +303,7 @@ deploy_api_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-dev
     - deploy
@@ -336,7 +336,7 @@ stop_api_dev:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-dev
@@ -366,7 +366,7 @@ deploy_redis_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -398,7 +398,7 @@ stop_redis_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
@@ -417,7 +417,7 @@ deploy_proxy_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -462,7 +462,7 @@ stop_proxy_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
@@ -481,7 +481,7 @@ deploy_api_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   tags:
     - gnome-stage
     - deploy
@@ -517,7 +517,7 @@ stop_api_stage:
   rules:
     - if:
         $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule)\b/
+        /\b(push|merge_request_event|pipeline|schedule|web)\b/
   when: manual
   tags:
     - gnome-stage
@@ -757,7 +757,7 @@ prune_session_folders_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_dev:
   stage: maintenance
@@ -774,7 +774,7 @@ prune_tmp_files_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_session_folders_stage:
   stage: maintenance
@@ -791,7 +791,7 @@ prune_session_folders_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_stage:
   stage: maintenance
@@ -808,7 +808,7 @@ prune_tmp_files_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_session_folders_production:
   stage: maintenance
@@ -825,7 +825,7 @@ prune_session_folders_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 prune_tmp_files_production:
   stage: maintenance
@@ -842,7 +842,7 @@ prune_tmp_files_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $CONTAINER_NAME /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
 
 .docker tidy:
   stage: util
