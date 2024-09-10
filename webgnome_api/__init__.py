@@ -34,7 +34,8 @@ logging.basicConfig()
 
 supported_ocean_models = {
     # 'RTOFS-GLOBAL',
-    'GOFS': 'hycom-forecast-agg',
+    'ESPC': 'hycom-forecast-agg',
+    #'GOFS': 'hycom-forecast-agg',
     'WCOFS': 'ioos-forecast-agg',
     'NGOFS2_RGRID': 'ioos-forecast-agg',
     # 'CREOFS': 'coops-forecast-noagg',
