@@ -1,5 +1,5 @@
 """
-    Main entry point
+Main entry point
 """
 
 import os
@@ -28,13 +28,14 @@ from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 logging.basicConfig()
 
 supported_ocean_models = {
     # 'RTOFS-GLOBAL',
-    'GOFS': 'hycom-forecast-agg',
+    'ESPC': 'hycom-forecast-agg',
+    #'GOFS': 'hycom-forecast-agg',
     'WCOFS': 'ioos-forecast-agg',
     'NGOFS2_RGRID': 'ioos-forecast-agg',
     # 'CREOFS': 'coops-forecast-noagg',

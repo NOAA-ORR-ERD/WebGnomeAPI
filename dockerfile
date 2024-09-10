@@ -19,6 +19,10 @@ RUN conda install -y python=$PYTHON_VER \
         --file /pygnome/py_gnome/conda_requirements.txt
 
 RUN cd libgoods && python -m pip install ./
+
+# add the environment file so the api can serve it up
+RUN  conda env export > webgnome_api/views/deployed_environment.yaml
+
 RUN python -m pip install ./
 
 RUN mkdir /config

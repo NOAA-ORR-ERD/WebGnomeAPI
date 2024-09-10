@@ -59,7 +59,8 @@ test_src:
     - pushd libgoods && pip install . && popd
     - pip install .
 
-    - python setup.py compilejson
+    - python setup.py compilejson # is this duplicating what happens already in the setup.py?
+    - conda env export > webgnome_api/views/deployed_environment.yaml
     - pytest webgnome_api/tests
     - conda list > conda_packages.txt
   artifacts:
