@@ -36,7 +36,7 @@ from webgnome_api.common.views import (can_persist,
                                        cors_response,
                                        cors_file_response,
                                        switch_to_existing_session)
-from webgnome_api.common.session_management import (get_registered_file)
+from webgnome_api.common.session_management import (search_registered_file)
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ def get_file(request):
 
     file_list = urllib.parse.unquote(request.GET.get('file_list', ''))
     filename = urllib.parse.unquote(request.GET.get('filename', ''))
+    obj_id = urllib.parse.unquote(request.GET.get('obj_id', ''))
     if filename and file_list:
         return cors_exception(
             request,
@@ -99,7 +100,7 @@ def get_file(request):
 
     if filename:
         filename = ujson.loads(filename)
-        filepath = get_registered_file(request, filename)
+        filepath = search_registered_file(request, filename, obj_id)
         if filepath is None:
             return cors_exception(
                 request,

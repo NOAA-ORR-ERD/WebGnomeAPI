@@ -13,18 +13,17 @@ RUN apt-get install -y redis
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
 
-# Make sure we are using mamba...
-RUN conda install -n base conda-libmamba-solver
-RUN conda config --set solver libmamba
-
 RUN conda install -y python=$PYTHON_VER \
         --file conda_requirements.txt \
-        --file libgoods/conda_requirements.txt 
+        --file libgoods/conda_requirements.txt \
+        --file /pygnome/py_gnome/conda_requirements.txt
 
 RUN cd libgoods && python -m pip install ./
-RUN python -m pip install ./
 
-RUN python setup.py compilejson
+# add the environment file so the api can serve it up
+RUN  conda env export > webgnome_api/views/deployed_environment.yaml
+
+RUN python -m pip install ./
 
 RUN mkdir /config
 RUN cp gnome-deploy/config/webgnomeapi/config.ini /config/config.ini

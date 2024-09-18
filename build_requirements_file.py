@@ -24,7 +24,7 @@ import textwrap
 
 HERE = Path(__file__).parent
 
-req_files = [HERE / "../pygnome/conda_requirements.txt",
+req_files = [HERE / "../pygnome/py_gnome/conda_requirements.txt",
              HERE / "../oil_database/adios_db/conda_requirements.txt",
              HERE / "../libgoods/conda_requirements.txt",
              HERE / "conda_requirements.txt",

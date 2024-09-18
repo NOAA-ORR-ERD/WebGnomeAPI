@@ -59,16 +59,6 @@ Current weather conditions and forecasts for locations throughout Michigan.
 Graphical marine forecasts for Lake Huron and Lake St. Clair.
 
 
-|iwin_link|
-
-Current, site-specific weather observations for Michigan locations.
-
-
-|iwin_text_link|
-
-State and zone forecasts and weather data for Michigan.
-
-
 **Oil Spill Response**
 
 |erd_link|
@@ -77,7 +67,7 @@ Tools and information for emergency responders and planners, and others concerne
 
 .. |coops_link| raw:: html
 
-   <a href="http://glakesonline.nos.noaa.gov" target="_blank">NOAA Center for Operational Oceanographic Products and Services</a>
+   <a href="https://tidesandcurrents.noaa.gov/map/index.html?region=Lake%20Huron" target="_blank">NOAA Center for Operational Oceanographic Products and Services</a>
 
 .. |usace_detroit_link| raw:: html
 
@@ -89,7 +79,7 @@ Tools and information for emergency responders and planners, and others concerne
 
 .. |usace_river_link| raw:: html
 
-   <a href="http://www.lre.usace.army.mil/Missions/Operations/DetroitRiver,MI.aspx" target="_blank">Detroit River</a>
+   <a href="https://lre-wm.usace.army.mil/reports/detroitRiver/detroitRiverHourlyLevels/detroitRiverHourlyLevels.html" target="_blank">Detroit River</a>
 
 .. |usgs_drift_link| raw:: html
 
@@ -101,7 +91,7 @@ Tools and information for emergency responders and planners, and others concerne
 
 .. |glin_link| raw:: html
 
-   <a href="http://www.great-lakes.net/lakes/stclair.html" target="_blank">Lake St. Clair</a>
+   <a href="https://www.glc.org/glin" target="_blank">Great Lakes Information Network</a>
 
 .. |usgs_adcp_link| raw:: html
 
@@ -113,19 +103,11 @@ Tools and information for emergency responders and planners, and others concerne
 
 .. |nws_link| raw:: html
 
-   <a href="http://www.crh.noaa.gov/dtx" target="_blank">National Weather Service, Detroit/Pontiac, MI</a>
+   <a href="https://www.weather.gov/dtx/" target="_blank">National Weather Service, Detroit/Pontiac, MI</a>
 
 .. |nws_marine_link| raw:: html
 
-   <a href="http://www.crh.noaa.gov/dtx/marine.php" target="_blank">National Weather Service, Detroit/Pontiac, MI, Marine Forecasts</a>
-
-.. |iwin_link| raw:: html
-
-   <a href="http://www.weather.gov/view/states.php?state=Mi&map=on" target="_blank">Michigan State Information from Interactive Weather Information Network (IWIN)</a>
-
-.. |iwin_text_link| raw:: html
-
-   <a href="http://www.weather.gov/view/states.php?state=mi" target="_blank">Interactive Weather Information Network (IWIN), Forecasts from Michigan (text only version)</a>
+   <a href="https://www.weather.gov/greatlakes/" target="_blank">National Weather Service, Great Lakes Marine Forecasts</a>
 
 .. |erd_link| raw:: html
 
