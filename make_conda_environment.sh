@@ -1,9 +1,10 @@
 # script / instructions for building a conda environment for webgnomeapi
-# NOTE: this won't work write if run as a script -- copy and paste the commands to your command line.
+# NOTE: this won't work right if run as a script -- copy and paste the commands to your command line.
 #    or use "source make_conda_environment.sh"
 
 
 PYTHON_VER=3.10
+
 
 # start with a new environment with the version of Python that you want:
 conda create -n gnome_test_$PYTHON_VER python=$PYTHON_VER

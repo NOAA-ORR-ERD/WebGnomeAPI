@@ -31,7 +31,8 @@ from webgnome_api.common.views import (can_persist,
                                        cors_exception,
                                        cors_policy,
                                        process_upload,
-                                       activate_uploaded)
+                                       activate_uploaded,
+                                       HTTPPythonError)
 from webgnome_api.common.session_management import get_session_objects
 
 log = logging.getLogger(__name__)
@@ -80,13 +81,10 @@ def upload_model(request):
         init_session_objects(request, force=True)
         refs = get_session_objects(request)
 
+        #passing the session_objects in as refs completes object registration for API
+        
         new_model = Model.load(file_path, refs=refs)
         new_model._cache.enabled = False
-
-        new_model._schema.register_refs(new_model._schema(), new_model, refs)
-#         from ..views import implemented_types
-#
-#         RegisterObject(new_model, request, implemented_types)
 
         log.info('setting active model...')
         set_active_model(request, new_model.id)
@@ -138,18 +136,14 @@ def activate_uploaded_model(request):
         init_session_objects(request, force=True)
         refs = get_session_objects(request)
 
+        #passing the session_objects in as refs completes object registration for API
         new_model = Model.load(zipfile_path, refs=refs)
         new_model._cache.enabled = False
 
-        new_model._schema.register_refs(new_model._schema(), new_model, refs)
-
-        # from ..views import implemented_types
-        # RegisterObject(new_model, request, implemented_types)
-
         log.info('setting active model...')
         set_active_model(request, new_model.id)
-    except Exception:
-        raise cors_exception(request, HTTPBadRequest, with_stacktrace=True)
+    except Exception as e:
+        raise cors_exception(request, HTTPPythonError(e), with_stacktrace=True)
     finally:
         session_lock.release()
         log.info('  session lock released (sess:{}, thr_id: {})'
@@ -171,15 +165,17 @@ def cleanup_tempfile_callback(request):
     be a file in zip format.
     """
     saveloc = get_session_object('saveloc', request)
+    try:
+        if os.path.isfile(saveloc):
+            log.debug(f'cleaning up temp file: {saveloc}')
+            os.remove(saveloc)
+        elif os.path.isdir(saveloc):
+            log.debug(f'cleaning up temp directory: {saveloc}')
+            shutil.rmtree(saveloc, ignore_errors=True)
 
-    if os.path.isfile(saveloc):
-        log.debug(f'cleaning up temp file: {saveloc}')
-        os.remove(saveloc)
-    elif os.path.isdir(saveloc):
-        log.debug(f'cleaning up temp directory: {saveloc}')
-        shutil.rmtree(saveloc, ignore_errors=True)
-
-    log.debug('Finished cleaning up temp file')
+        log.debug('Finished cleaning up temp file')
+    except Exception as e:
+        log.error(f'Error cleaning up temp file: {e}')
 
 
 @download.get()

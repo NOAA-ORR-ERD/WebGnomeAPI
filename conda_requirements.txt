@@ -40,7 +40,16 @@ gevent
 python-socketio
 gevent-websocket
 
-redis-py
+# With versions of redis-py greater than 4.6.0, we are getting the following:
+#     ValueError: I/O operation on closed file.
+#
+# Reference: https://github.com/redis/redis-py/issues/3184
+#
+# Let's check this issue from time to time to see if we can un-pin the version
+# on this package.
+#
+redis-py=4.6.0
+
 # we need the redis server to manage sessions
 # uncomment is you want to use a conda installed version
 # redis

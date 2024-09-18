@@ -3,6 +3,7 @@ Common Gnome object request handlers.
 """
 import logging
 from threading import Lock
+from pathlib import Path
 
 from pyramid_session_redis.util import LazyCreateSession
 from pyramid.httpexceptions import HTTPException
@@ -150,6 +151,11 @@ def register_exportable_file(request, basename, filepath):
         session['registered_files'] = {}
 
     file_reg = session['registered_files']
+    if basename in file_reg:
+        if filepath != file_reg[basename]:
+            log.info('Overwriting registered file: {0}'.format(basename))
+            log.info('Old Filepath: {0}'.format(file_reg[basename]))
+            log.info('New Filepath: {0}'.format(filepath))
     file_reg[basename] = filepath
 
     session['registered_files'] = file_reg
@@ -170,6 +176,22 @@ def unregister_exportable_file(request, basename):
         del session['registered_files'][basename]
         session.do_persist()
 
+def search_registered_file(request, basename, obj_id=None):
+    # If an obj_id is provided, if the object is registered in the session
+    # then we can search for possible filenames in the object schema
+    if obj_id is not None and obj_id != '':
+        obj = get_session_object(obj_id, request)
+        if obj is not None:
+            potential_fn_attrs = obj._schema().get_nodes_by_attr('isdatafile')
+            for fn_attr in potential_fn_attrs:
+                fn = Path(getattr(obj, fn_attr))
+                if fn.exists() and fn.is_file() and fn.name == basename:
+                    register_exportable_file(request, basename, str(fn))
+                    return str(fn)
+        else:
+            return None
+    else:
+        return get_registered_file(request, basename)
 
 def get_registered_file(request, basename):
     return request.session.get('registered_files', {}).get(basename, None)

@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2024-04-09
+# on 2024-08-05
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -19,7 +19,7 @@ progressbar
 psutil
 python-dateutil
 pyzmq
-numpy
+numpy >=1.24,<2
 scipy
 gsw
 netCDF4
@@ -39,7 +39,7 @@ python>=3.9,<3.12
 numpy>=1.20
 pynucos>=2.12
 awesome-slugify>=1.6.5
-python>=3.8
+python>=3.9
 extract_model
 netCDF4  # hopefully we aren't using multithreading
 numpy
@@ -48,7 +48,7 @@ shapely
 s3fs
 pandas
 yaml
-python>=3.9,<3.11
+python>=3.9,<3.12
 numpy
 regex
 awesome-slugify
@@ -68,7 +68,7 @@ pycparser
 gevent
 python-socketio
 gevent-websocket
-redis-py
+redis-py=4.6.0
 pytest
 webtest>=2.0
 testfixtures
