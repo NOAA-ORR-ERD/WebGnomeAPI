@@ -18,8 +18,6 @@ RUN conda install -y python=$PYTHON_VER \
         --file libgoods/conda_requirements.txt \
         --file /pygnome/py_gnome/conda_requirements.txt
 
-
-
 RUN cd libgoods && python -m pip install ./
 
 # add the environment file so the api can serve it up
