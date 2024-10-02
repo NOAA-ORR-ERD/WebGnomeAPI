@@ -106,24 +106,21 @@ def upload_mover(request):
     # This isn't super awesome here, b/c this route is also used for loading
     # point winds. In that case the client just passes in a 0 value for tshift.
     # More robust support at the environment level in pyGNOME would be better.
-
+    
     tshift = int(request.POST['tshift'])
     if isinstance(file_name, str):
+        file_list = [file_name,]
+        
+    for f in file_list:    
         try:
-            shift_lon(file_name)
-        except Exception as e:
-            log.error('Error shifting lon: {}'.format(e))
-        if tshift != 0:
-            shift_time(file_name, tshift)
-    else:
-        for f in file_list:
-            try:
-                shift_lon(f)
-            except Exception as e:
-                log.error('Error shifting lon: {}'.format(e))
-            if tshift != 0:
-                shift_time(f, tshift)
-    
+            nc = Dataset(f, 'r')
+            is_netcdf = True
+            nc.close()
+        except:
+            pass
+        if is_netcdf:
+            shift_lon_time(f,tshift)
+   
     log.info('  {} file_name: {}, name: {}'
              .format(log_prefix, file_name, name))
 
@@ -168,25 +165,31 @@ def upload_mover(request):
     log.info('<<{}'.format(log_prefix))
     return cors_response(request, resp)
 
-def shift_lon(filename):
+def shift_lon_time(filename,tshift):
     '''
     This is a hack until we implement the coordinate attribute. But all the FVCOM OFS models are 0-360 and its an issue.
     '''
-    print('shifting lon')
-    nc = Dataset(filename, 'r+')
+    #log.error('Error shifting lon: {}'.format(e))
     try:
-        lonc = nc.variables['lonc']
-        lonc[:] = np.where(lonc[:]>180,lonc[:]-360,lonc[:])
-        lon = nc.variables['lon']
-        lon[:] = np.where(lon[:]>180,lon[:]-360,lon[:])
-        print('done')
-    except KeyError:
-        pass
+        nc = Dataset(filename, 'r+')
+    except:        
+        if tshift != 0:
+            raise Exception('NetCDF file not writeable')
+    else:
+        try:
+            lonc = nc.variables['lonc']       
+            lon = nc.variables['lon']
+            lonc[:] = np.where(lonc[:]>180,lonc[:]-360,lonc[:])
+            lon[:] = np.where(lon[:]>180,lon[:]-360,lon[:])
+        except KeyError:
+            pass
 
-    nc.close()
-        
+        if tshift != 0:
+            shift_time(nc, tshift)
+            
+        nc.close()   
 
-def shift_time(filename, tshift):
+def shift_time(nc, tshift):
     '''
     Shift time by hours in tshift
     for reference:
@@ -204,10 +207,9 @@ def shift_time(filename, tshift):
           [-4,'EDT (-4)'],
           [-3,'ADT (-3)']]
     '''
-    nc = Dataset(filename, 'r+')
+
     ncvars = nc.variables
     tvar = None
-
     try:
         ncvars['time']
         tvar = 'time'
@@ -224,8 +226,9 @@ def shift_time(filename, tshift):
         oldtime = num2date(t[:], t.units)
         newtime = date2num(oldtime + offset, t.units)
         t[:] = newtime
-        nc.close()
-
+    else:
+        log.error('Error shifting time: {}'.format(e))
+    
 
 def get_current_info(request):
     '''
