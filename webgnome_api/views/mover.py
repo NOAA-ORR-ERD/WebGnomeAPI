@@ -120,6 +120,7 @@ def upload_mover(request):
             pass
         if is_netcdf:
             shift_lon_time(f,tshift)
+
    
     log.info('  {} file_name: {}, name: {}'
              .format(log_prefix, file_name, name))
@@ -167,7 +168,7 @@ def upload_mover(request):
 
 def shift_lon_time(filename,tshift):
     '''
-    This is a hack until we implement the coordinate attribute. But all the FVCOM OFS models are 0-360 and its an issue.
+    The longitude shift is a hack until we implement the coordinate attribute. But all the FVCOM OFS models are 0-360 and its an issue.
     '''
     #log.error('Error shifting lon: {}'.format(e))
     try:
