@@ -106,24 +106,23 @@ def upload_mover(request):
     # This isn't super awesome here, b/c this route is also used for loading
     # point winds. In that case the client just passes in a 0 value for tshift.
     # More robust support at the environment level in pyGNOME would be better.
-
+    
     tshift = int(request.POST['tshift'])
     if isinstance(file_name, str):
+        file_list = [file_name,]
+        
+    for f in file_list:    
         try:
-            shift_lon(file_name)
-        except Exception as e:
-            log.error('Error shifting lon: {}'.format(e))
-        if tshift != 0:
-            shift_time(file_name, tshift)
-    else:
-        for f in file_list:
-            try:
-                shift_lon(f)
-            except Exception as e:
-                log.error('Error shifting lon: {}'.format(e))
+            nc = Dataset(f, 'r')
+            is_netcdf = True
+            nc.close()
+        except:
+            pass
+        if is_netcdf:
+            shift_lon(f)
             if tshift != 0:
                 shift_time(f, tshift)
-    
+   
     log.info('  {} file_name: {}, name: {}'
              .format(log_prefix, file_name, name))
 
@@ -172,14 +171,13 @@ def shift_lon(filename):
     '''
     This is a hack until we implement the coordinate attribute. But all the FVCOM OFS models are 0-360 and its an issue.
     '''
-    print('shifting lon')
+    #log.error('Error shifting lon: {}'.format(e))
     nc = Dataset(filename, 'r+')
     try:
-        lonc = nc.variables['lonc']
-        lonc[:] = np.where(lonc[:]>180,lonc[:]-360,lonc[:])
+        lonc = nc.variables['lonc']       
         lon = nc.variables['lon']
+        lonc[:] = np.where(lonc[:]>180,lonc[:]-360,lonc[:])
         lon[:] = np.where(lon[:]>180,lon[:]-360,lon[:])
-        print('done')
     except KeyError:
         pass
 
@@ -225,7 +223,10 @@ def shift_time(filename, tshift):
         newtime = date2num(oldtime + offset, t.units)
         t[:] = newtime
         nc.close()
-
+    else:
+        log.error('Error shifting time: {}'.format(e))
+    
+    nc.close()
 
 def get_current_info(request):
     '''
