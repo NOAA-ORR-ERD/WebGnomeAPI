@@ -89,7 +89,7 @@ webgnomeapi is a Pyramid application that can be run with the paste uwsgi server
 
   pserve config-example.ini
 
-That will strat up the server, and it will be available on:
+That will start up the server, and it will be available on:
 
 http://localhost:9899/
 
