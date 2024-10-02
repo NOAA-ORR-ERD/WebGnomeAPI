@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2024-07-29
+# on 2024-08-05
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -13,13 +13,13 @@
 # build_requirements_file.py script.
 
 python=3.10
-python>=3.9,<=3.12
+python>=3.9,<3.12
 colander <2
 progressbar
 psutil
 python-dateutil
 pyzmq
-numpy <2
+numpy >=1.24,<2
 scipy
 gsw
 netCDF4
