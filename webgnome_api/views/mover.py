@@ -109,12 +109,18 @@ def upload_mover(request):
 
     tshift = int(request.POST['tshift'])
     if isinstance(file_name, str):
-        shift_lon(file_name)
+        try:
+            shift_lon(file_name)
+        except Exception as e:
+            log.error('Error shifting lon: {}'.format(e))
         if tshift != 0:
             shift_time(file_name, tshift)
     else:
         for f in file_list:
-            shift_lon(f)
+            try:
+                shift_lon(f)
+            except Exception as e:
+                log.error('Error shifting lon: {}'.format(e))
             if tshift != 0:
                 shift_time(f, tshift)
     
