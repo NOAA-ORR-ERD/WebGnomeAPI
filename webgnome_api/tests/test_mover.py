@@ -883,3 +883,17 @@ class PyMoverTests(FunctionalTestBase):
 
         for a in ('id', 'obj_type', 'active_range'):
             assert resp2.json_body[a] == resp1.json_body[a]
+
+
+# class UploadMoverTests(FunctionalTestBase):
+#     '''
+#         Tests out the API for uploading a mover
+
+#         It should test for both netcdf and *.cur
+#         with and without a time shift
+#         and, ideally, a broken netcdf file that can't be written to
+#     '''
+#     def test_timeshift(self):
+#         """
+#         test that the timeshifting code works.
+#         """
