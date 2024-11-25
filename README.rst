@@ -89,7 +89,7 @@ webgnomeapi is a Pyramid application that can be run with the paste uwsgi server
 
   pserve config-example.ini
 
-That will strat up the server, and it will be available on:
+That will start up the server, and it will be available on:
 
 http://localhost:9899/
 
@@ -211,4 +211,3 @@ This is key -- as libgoods is under active development, we will need to keep upd
 NOTE: we should have this repo configured so that you get the right branch of the libgoods submodule, but we'll need to make sure. e.g. if the webgnomeapi repo is on the develop branch, it should pull the develop branch from libgoods as well.
 
 NOTE2: It seems, at least by dewfault, that the submodule is checkout in in "detached HEAD" mode. So you do not want to make changes to libgoods directly in that module, but rather, make any changes in the libgoods repo itself, push them, and then run ``git submodule update --remote``.
-

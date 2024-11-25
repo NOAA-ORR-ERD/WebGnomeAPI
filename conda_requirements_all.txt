@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2024-08-05
+# on 2024-11-07
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -13,13 +13,14 @@
 # build_requirements_file.py script.
 
 python=3.10
-python>=3.9,<3.12
+python>=3.9,<=3.12
+awesome-slugify
 colander <2
 progressbar
 psutil
 python-dateutil
 pyzmq
-numpy >=1.24,<2
+numpy >=1.24,<3
 scipy
 gsw
 netCDF4
@@ -29,20 +30,16 @@ geopandas
 mapbox_earcut
 pyogrio
 pyproj
-shapely
-gridded>=0.6.5
-pynucos=3.2.*
+shapely>=2.0.6 # older one broken with numpy2
+gridded>=0.6.10
+pynucos>=3.3.0
 cell_tree2d
-py_gd>=2.2
-adios_db>=1.1
-python>=3.9,<3.12
-numpy>=1.20
-pynucos>=2.12
-awesome-slugify>=1.6.5
+py_gd>=2.3
+adios_db>=1.2.4
 python>=3.9
 extract_model
 netCDF4  # hopefully we aren't using multithreading
-numpy
+numpy >=1.24,<3
 requests
 shapely
 s3fs

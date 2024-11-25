@@ -106,12 +106,12 @@ def upload_mover(request):
     # This isn't super awesome here, b/c this route is also used for loading
     # point winds. In that case the client just passes in a 0 value for tshift.
     # More robust support at the environment level in pyGNOME would be better.
-    
+
     tshift = int(request.POST['tshift'])
     if isinstance(file_name, str):
         file_list = [file_name,]
-        
-    for f in file_list:    
+
+    for f in file_list:
         try:
             nc = Dataset(f, 'r')
             is_netcdf = True
@@ -120,7 +120,7 @@ def upload_mover(request):
             is_netcdf = False
         if is_netcdf:
             shift_lon_time(f,tshift)
-   
+
     log.info('  {} file_name: {}, name: {}'
              .format(log_prefix, file_name, name))
 
@@ -165,19 +165,20 @@ def upload_mover(request):
     log.info('<<{}'.format(log_prefix))
     return cors_response(request, resp)
 
-def shift_lon_time(filename,tshift):
+def shift_lon_time(filename, tshift):
     '''
-    The longitude shift is a hack until we implement the coordinate attribute. But all the FVCOM OFS models are 0-360 and its an issue.
+    The longitude shift is a hack until we implement the coordinate attribute.
+    hack is specific to the FVCOM OFSs:
+       All the FVCOM OFS models are 0-360 and it's an issue.
     '''
-    #log.error('Error shifting lon: {}'.format(e))
     try:
         nc = Dataset(filename, 'r+')
-    except:        
+    except OSError as err:
         if tshift != 0:
-            raise Exception('NetCDF file not writeable')
+            raise RuntimeError("NetCDF file not writable -- can not shift time") from err
     else:
         try:
-            lonc = nc.variables['lonc']       
+            lonc = nc.variables['lonc']
             lon = nc.variables['lon']
             lonc[:] = np.where(lonc[:]>180,lonc[:]-360,lonc[:])
             lon[:] = np.where(lon[:]>180,lon[:]-360,lon[:])
@@ -186,8 +187,8 @@ def shift_lon_time(filename,tshift):
 
         if tshift != 0:
             shift_time(nc, tshift)
-            
-        nc.close()   
+
+        nc.close()
 
 def shift_time(nc, tshift):
     '''
@@ -228,7 +229,7 @@ def shift_time(nc, tshift):
         t[:] = newtime
     else:
         log.error('Error shifting time: {}'.format(e))
-    
+
 
 def get_current_info(request):
     '''
