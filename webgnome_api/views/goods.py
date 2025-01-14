@@ -421,7 +421,8 @@ class GOODSRequest(object):
         self.subset_size = None
         self.filename = filename
         self.outpath = outpath
-        self.tshift = float(tshift) #timezone shift retained for future use by webgnomeapi
+        self.tshift = tshift
+        #self.tshift = float(tshift) if tshift != 'NaN' else None #timezone shift retained for future use by webgnomeapi
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
