@@ -229,7 +229,7 @@ def create_goods_request(request):
 
     cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
-    tshift = params['tshift']
+    tshift = 0 #eliminating this but not done entirely yet (mover.py)
 
     include_winds = params.get('include_winds', True) not in ('false',
                                                               'False',

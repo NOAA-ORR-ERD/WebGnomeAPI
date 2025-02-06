@@ -102,12 +102,10 @@ def upload_mover(request):
     name = request.POST['name']
     file_name = file_list
 
-    # This enables a time shift for gridded movers.
-    # This isn't super awesome here, b/c this route is also used for loading
-    # point winds. In that case the client just passes in a 0 value for tshift.
+    # The tshift has been disabled here. However, it still checks for the need 
+    # to shift longitude from 0-360. 
     # More robust support at the environment level in pyGNOME would be better.
     
-    tshift = int(request.POST['tshift'])
     if isinstance(file_name, str):
         file_list = [file_name,]
         
@@ -119,7 +117,7 @@ def upload_mover(request):
         except:
             is_netcdf = False
         if is_netcdf:
-            shift_lon_time(f,tshift)
+            shift_lon_time(f)
    
     log.info('  {} file_name: {}, name: {}'
              .format(log_prefix, file_name, name))
@@ -165,8 +163,10 @@ def upload_mover(request):
     log.info('<<{}'.format(log_prefix))
     return cors_response(request, resp)
 
-def shift_lon_time(filename, tshift):
+def shift_lon_time(filename, tshift=0):
     '''
+    tshift is now set to zero and not applied. The rest of this will be eliminated
+    when we handle coordinate shift elsewhere.
     The longitude shift is a hack until we implement the coordinate attribute.
     hack is specific to the FVCOM OFSs:
        All the FVCOM OFS models are 0-360 and it's an issue.
