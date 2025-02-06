@@ -155,7 +155,7 @@ Initial Clone
 
 When you first clone the webgnomeapi repo, you get a dir for the libgood submodule, but not the actual code.
 
-NOTE: As with all things git -- there are multipel ways to ackomlish all this, but I think this is the most straightforward.
+NOTE: As with all things git -- there are multiple ways to accomplish all this, but I think this is the most straightforward.
 
 To get the actual code, you must run two commands: ``git submodule init`` to initialize your local configuration file, and ``git submodule update`` to fetch all the data from that project and check out the appropriate commit listed in your superproject.
 
