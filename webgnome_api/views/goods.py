@@ -229,7 +229,7 @@ def create_goods_request(request):
 
     cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
-    tshift = params['tshift']
+    tshift = 0 #eliminating this but not done entirely yet (mover.py)
 
     include_winds = params.get('include_winds', True) not in ('false',
                                                               'False',
@@ -421,7 +421,8 @@ class GOODSRequest(object):
         self.subset_size = None
         self.filename = filename
         self.outpath = outpath
-        self.tshift = int(tshift) #timezone shift retained for future use by webgnomeapi
+        self.tshift = tshift
+        #self.tshift = float(tshift) if tshift != 'NaN' else None #timezone shift retained for future use by webgnomeapi
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
