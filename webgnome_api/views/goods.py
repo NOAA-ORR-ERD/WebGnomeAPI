@@ -17,7 +17,8 @@ import ujson
 from cornice import Service
 
 from pyramid.httpexceptions import (HTTPInsufficientStorage,
-                                    HTTPBadRequest)
+                                    HTTPBadRequest,
+                                    HTTPNotFound)
 
 from webgnome_api.common.system_resources import get_free_space
 from webgnome_api.common.common_object import (get_session_dir,)
@@ -44,6 +45,9 @@ log = logging.getLogger(__name__)
 
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
+                     
+goods_nws_wind = Service(name='nws', path='/goods/nws*',
+                     description="GOODS NWS Point Wind API", cors_policy=cors_policy)
 
 goods_validation = Service(name='validation', path='/goods/validation*',
                          description="GOODS SUBSET VALIDATION API",
@@ -194,6 +198,28 @@ def get_goods_map(request):
     log.info('Successfully uploaded file "{0}"'.format(file_path))
 
     return file_path, file_name
+    
+@goods_nws_wind.get()
+def get_nws_wind(request):
+    '''
+    Uses the payload passed by the client to make a NWS wind request
+    from libGOODS.
+    This file is then used to create a map object, which is then returned
+    to the client
+
+    Example post:
+    req_params = {
+                  'latitude': '47.06693175688763',
+                  'longitude': '-124.26942110656861',
+                  }
+    '''
+    params = request.GET
+    try:
+        data = api.NWS_point_wind(lon=params['longitude'],lat=params['latitude'])
+    except ValueError as e:
+        return cors_response(request, HTTPNotFound(e))
+                       
+    return data
 
 
 def create_goods_request(request):
