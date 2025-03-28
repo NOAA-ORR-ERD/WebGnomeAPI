@@ -29,7 +29,7 @@ For more information on supported NetCDF or ASCII formats, see the |file_formats
 
 .. |file_formats_link| raw:: html
 
-   <a href="https://response.restoration.noaa.gov/oil-and-chemical-spills/oil-spills/response-tools/gnome-references.html#dataformats" target="_blank">GNOME supported file formats document</a>
+   <a href="https://gnome.orr.noaa.gov/doc/pygnome/file_formats/index.html" target="_blank">GNOME supported file formats document</a>
 
 .. |goods_link| raw:: html
 

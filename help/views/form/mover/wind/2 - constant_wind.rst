@@ -17,13 +17,6 @@ To select **Wind Direction and Speed using the bull\'s-eye**, click and drag ins
 the length of the arrow to represent speed and the direction of the arrow to indicate the direction of 
 the wind.
 
-The **Speed Uncertainty (Oil Weathering)** option adds some variability to the magnitude of the winds that
-affects oil weathering ONLY (uncertainty is handled differently in the oil transport and is activated 
-from the Model Settings panel). |location_link|
-
-Change the **Speed Uncertainty** slider by dragging the bar to the left for certain and to the right for 
-uncertain to change the range of wind speed that will be used. Range is calculated using a Rayleigh 
-distribution.
 
 .. |location_link| raw:: html
 
