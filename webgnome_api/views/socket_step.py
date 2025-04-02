@@ -118,11 +118,49 @@ def run_export_model(request):
                 active_model.rewind()
                 log.info(f'{grn.__repr__()}: cleaned up {str(num)} outputters')
 
-                if (grn.exception or isinstance(grn.value, GreenletExit)):
+                if (isinstance(grn.value, GreenletExit)):
                     # A cleanly stopped Greenlet may exit with GreenletExit
                     # Do not consider this a 'successful' export run even if
                     # files exist
                     ns.emit('export_failed', room=sid)
+                elif (grn.exception):
+                    # same as the else for now, allow files to be output for any exception
+                    if len(temporary_outputters) > 1:
+                        # need to zip up outputs
+                        end_basename = model_filename + '_output.zip'
+                        end_filepath = os.path.join(session_path, end_basename)
+                        zipfile_ = zipfile.ZipFile(
+                            end_filepath, 'w',
+                            compression=zipfile.ZIP_DEFLATED
+                        )
+
+                        for m in temporary_outputters:
+                            obj_fn = m.filename
+
+                            if not os.path.exists(obj_fn):
+                                # special case for shapefile outputter
+                                # which strips extensions...
+                                obj_fn = obj_fn + '.zip'
+
+                            zipfile_.write(obj_fn, os.path.basename(obj_fn))
+                    else:
+                        # only one output file, because one outputter selected
+                        obj_fn = temporary_outputters[0].filename
+
+                        if not os.path.exists(obj_fn):
+                            # special case for shapefile outputter
+                            obj_fn = obj_fn + '.zip'
+
+                        end_basename = os.path.basename(obj_fn)
+                        end_filepath = os.path.join(session_path, end_basename)
+
+                        shutil.move(obj_fn, end_filepath)
+
+                    register_exportable_file(request, end_basename,
+                                             end_filepath)
+
+                    ns.emit('export_finished_incomplete', end_basename, room=sid)
+                    #ns.emit('export_failed', room=sid)
                 else:
                     if len(temporary_outputters) > 1:
                         # need to zip up outputs
