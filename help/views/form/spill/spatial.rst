@@ -8,8 +8,10 @@ This section is automatically popluated based on the oil classification informat
 
 **General Spill Properties**
 
-* Enter the **Name** of the spill. Use descriptive names, particularly if you will be adding more than one spill.
-* The **Time of Release** is automatically set from the file if it can be parsed. This should correspond to the time of the imagery. Alternatively, select the date and time using the calendar icon next to the entry box or enter a date and time manually. Use date format yyyy/mm/dd and time format 00:00 (24-hour clock). To select a date using the calendar, click on the calendar icon next to the start time entry. Click on the left or right arrows to change the month, and click on a date square to select it. Select a time from the list to the right of the calendar, scrolling up or down as necessary.
+* Enter the **Name** of the spill. Use descriptive names, particularly if you will be adding more than one spill. By default this will be the name of the file.
+* The **Time of Release** is automatically set from the file if it can be parsed and correspods to the time of the imagery. The timezone in NESDIS pollution reports is UTC (current spill timezone is displayed for reference). To change the default, select the date and time using the calendar icon next to the entry box or enter a date and time manually. Use date format yyyy/mm/dd and time format 00:00 (24-hour clock). To select a date using the calendar, click on the calendar icon next to the start time entry. 
+* Check **Adjust to Model Timezone** to convert the spill time to match the model timezone. 
+* The **Model Time Zone** can be changed if desired (by default it will match the time zone specified in the **Model Settings**). Changing it in this form will also apply the change to the model. 
 * The total **Amount Released** is automatically calculated from the oil class volumes.
 * The **Number of Particles** defaults to 1000 but can be edited if desired (e.g. for a large volume spill).
 
