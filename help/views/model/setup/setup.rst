@@ -27,7 +27,7 @@ the oil will depend on some water properties.
 
 **Note on using multiple Winds**
 
-Although multiple winds can be added to the model and toggled on/off this only affects the transport of particles. Weathering algorithms will use the FIRST wind in the list regardless of whether it is active. 
+In Setup View multiple winds can be added to the model. The weathering algorithms will always use the first wind in the list. There is no way to reorder the list, and turning off the wind will not prioritize the next wind in the list. In order to connect the weathering to a new wind, the old wind must be deleted.
 
 **Advanced Settings**
 
