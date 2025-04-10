@@ -25,6 +25,10 @@ Although its possible to set up the model in various ways, a typical simulation 
 If an oil is specified as the substance that is spilled, information in the Water panel will also need to be specified as the weathering of 
 the oil will depend on some water properties.
 
+**Note on using multiple Winds**
+
+Although multiple winds can be added to the model and toggled on/off this only affects the transport of particles. Weathering algorithms will use the FIRST wind in the list regardless of whether it is active. 
+
 **Advanced Settings**
 
 When adding or editing a model object, a pull down list of Advanced Settings appears at the bottom of the form. Although
