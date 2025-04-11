@@ -8,4 +8,4 @@ The text file format for time series of point winds can be found in the |file_fo
 
 .. |file_formats_link| raw:: html
 
-   <a href="https://response.restoration.noaa.gov/oil-and-chemical-spills/oil-spills/response-tools/gnome-references.html#dataformats" target="_blank">supported file formats document</a>
+   <a href="https://gnome.orr.noaa.gov/doc/pygnome/file_formats/index.html" target="_blank">supported file formats document</a>

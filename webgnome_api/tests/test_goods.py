@@ -13,6 +13,7 @@ from pathlib import Path
 from .base import FunctionalTestBase, MODELS_DIR
 
 import pytest
+import webtest.app
 
 try:
     import libgoods
@@ -83,7 +84,41 @@ class GetMapTest(FunctionalTestBase):
 
             # maybe check creation time, or ???
 
+@pytest.mark.skipif(not LIBGOODS, reason="libgoods not there, not testing map access")
+# @pytest.mark.skip('need to make this optional when GOODS is down')
+class GetNWS_WindsTest(FunctionalTestBase):
+    '''
+    Tests of getting NWS winds from the libGOODS API
 
+    There should probably be tests of various failing conditions.
+    '''
+
+    def test_get_NWSwinds(self):
+        """
+        """
+        
+        req_params = {
+              'longitude': '-124.8',
+              'latitude': '48',
+              }
+
+        resp = self.testapp.get('/goods/nws', req_params)
+        
+        assert 'timeseries' in resp.json_body
+
+    def test_get_NWSwinds_badlocation(self):
+        """
+        """
+        
+        req_params = {
+              'longitude': '0',
+              'latitude': '0',
+              }
+        
+        with self.assertRaises(webtest.app.AppError) as err:
+            resp = self.testapp.get('/goods/nws', req_params)
+        
+        
 @pytest.mark.skip("not functional right now")
 class GetCurrentsTest(FunctionalTestBase):
     '''

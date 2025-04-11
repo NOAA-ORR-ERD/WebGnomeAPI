@@ -8,6 +8,7 @@ the sections titled **Position** nor **Windage**. These sections are only releva
 
 * Enter the **Name** of the spill. Use descriptive names, particularly if you will be adding more than one spill.
 * Enter the **Time of Release** or select the date and time using the calendar icon next to the entry box. To enter a date and time manually, use date format yyyy/mm/dd and time format 00:00 (24-hour clock). To select a date using the calendar, click on the calendar icon next to the start time entry. Click on the left or right arrows to change the month, and click on a date square to select it. Select a time from the list to the right of the calendar, scrolling up or down as necessary.
+* The **Model Time Zone** can be changed if desired (by default it will match the time zone specified in the **Model Settings**). Changing it in this form will also apply the change to the model. 
 * Enter the **Release Duration** and select units from the drop-down menu.
 * Either enter the **Amount Released** (total spill amount) or **Release Rate** and select units from the drop-down menu. The other field will be dynamically calculated. Note that if **Release Duration** is set to zero, setting **Relase Rate** will be disabled.
 * The **Number of Particles** defaults to 1000 but can be edited if desired (e.g. for a large volume spill).
