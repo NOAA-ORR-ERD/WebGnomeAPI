@@ -47,7 +47,7 @@ class GetMapTest(FunctionalTestBase):
 
         # mock the libgoods get_map function
         # if True:
-        with mock.patch('libgoods.maps.get_map',
+        with mock.patch('libgoods.api.get_map',
                           return_value=("coast.bna", MOCK_MAP)
                           ):
 

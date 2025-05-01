@@ -5,7 +5,7 @@
 
 **Shapefile format**
 
-Valid files to upload are in a zipped shapefile (ESRI) format containing polygons that depict oil location. If polygons are classified (thick/thin) this information will be used to distribute
+Valid files to upload are in a zipped shapefile (ESRI) format containing polygons that depict oil location. If polygons are classified (thick/thin) and **NOAA/NESDIS Marine Pollution Surveillance Report** is checked this information will be used to distribute
 particles proportionally amongst the polygons (this can be customized
 once the file is loaded).
 

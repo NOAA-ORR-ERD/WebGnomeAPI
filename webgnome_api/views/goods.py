@@ -32,7 +32,7 @@ from webgnome_api.common.views import (cors_policy,
 from webgnome_api import supported_ocean_models, supported_met_models
 
 try:
-    from libgoods import maps, api, FileTooBigError
+    from libgoods import api, FileTooBigError
 except ImportError:
     print("libgoods package not available "
           "-- its functionality will not be there")
@@ -156,17 +156,15 @@ def get_goods_map(request):
 
     params = request.POST
 
-    # In the future, the webgnome API should be a closer match
-    # to the libgoods api.
     max_upload_size = eval(request.registry.settings['max_upload_size'])
-    bounds = ((float(params['WestLon']), float(params['SouthLat'])),
-              (float(params['EastLon']), float(params['NorthLat'])))
+    bounds = (float(params['WestLon']), float(params['SouthLat']),
+              float(params['EastLon']), float(params['NorthLat']))
 
     try:
-        fn, contents = maps.get_map(
+        fn, contents = api.get_map(
             bounds=bounds,
             resolution=params['resolution'],
-            shoreline=params['shoreline'],
+            data_source=params['shoreline'],
             cross_dateline=bool(int(params['xDateline'])),
             max_filesize=max_upload_size,
         )
