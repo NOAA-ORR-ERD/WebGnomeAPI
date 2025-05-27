@@ -151,12 +151,12 @@ class WebgnomeNamespace(socketio.Namespace):
 
         overall_logger = logging.root
         formatter = overall_logger.handlers[0].formatter
-        pattern = re.compile('^(?P<date>.*?)\s+'
-                             '(?P<time>.*?)\s+'
-                             '(?P<level>.*?)\s+'
-                             '(?P<session_hash>.*?)\s+'
-                             '(?P<name>.*?)\s+'
-                             '(?P<message>.*?)$')
+        pattern = re.compile(r'^(?P<date>.*?)\s+'
+                             r'(?P<time>.*?)\s+'
+                             r'(?P<level>.*?)\s+'
+                             r'(?P<session_hash>.*?)\s+'
+                             r'(?P<name>.*?)\s+'
+                             r'(?P<message>.*?)$')
 
         overall_logger.info('{0} handlers attached'
                             .format(len(overall_logger.handlers)))
