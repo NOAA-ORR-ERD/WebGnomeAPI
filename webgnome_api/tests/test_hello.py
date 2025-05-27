@@ -41,7 +41,8 @@ class TestHello(FunctionalTestBase):
         </html>
         """
 
-        open("home.html", 'w', encoding='utf-8').write(resp)
+        # just to check while testing
+        # open("home.html", 'w', encoding='utf-8').write(resp)
 
         assert "<h1>WebGnome API Server Package Versions</h1>" in resp
         assert resp.startswith("<html>")
