@@ -135,16 +135,16 @@ class RendererTests(OutputterTests):
         json_obj['output_last_step'] = False
         json_obj['output_zero_step'] = False
         json_obj['draw_ontop'] = 'uncertain'
-        json_obj['viewport'] = [[-100.0, 100.0],
-                                [-100.0, 100.0]]
+        json_obj['viewport'] = [[-110.0, 100.0],
+                                [-100.0, 110.0]]
 
     def check_updates(self, json_obj):
         assert json_obj['output_last_step'] is False
         assert json_obj['output_zero_step'] is False
         assert json_obj['draw_ontop'] == 'uncertain'
 
-        assert json_obj['viewport'] == [[-100.0, 100.0],
-                                        [-100.0, 100.0]]
+        assert json_obj['viewport'] == [[-110.0, 100.0],
+                                        [-100.0, 110.0]]
 
 
 class NetCDFOutputterTests(OutputterTests):

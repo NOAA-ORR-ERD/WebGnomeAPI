@@ -7,6 +7,7 @@ dump.rdb
 build/
 
 # python stuff:
+.coverage
 .pytest_cache/
 *.pyc
 *.swp
