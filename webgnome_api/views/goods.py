@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
-                     
+
 goods_nws_wind = Service(name='nws', path='/goods/nws*',
                      description="GOODS NWS Point Wind API", cors_policy=cors_policy)
 
@@ -74,7 +74,6 @@ def get_model_metadata(request):
     '''
     bounds = request.GET.get('map_bounds', None)
     model_id = request.GET.get('model_id', None)
-    model_source = request.GET.get('model_source', None)
     request_type = request.GET.get('request_type')
     try:
         if any(cur in request_type for cur in ('surface currents',
@@ -85,34 +84,33 @@ def get_model_metadata(request):
         else:
             supported_env_models = {}
     except TypeError:
-        supported_env_models = {**supported_ocean_models,
-                                **supported_met_models}
+        supported_env_models = [supported_ocean_models + supported_met_models]
     retval = None
-    # model_list = list(supported_env_models.keys())
+
     if bounds:
         bounds = ujson.loads(bounds)
     if model_id:
-        mdl = api.get_model_info(model_id, model_source)
+        mdl = api.get_model_info(model_id)
         return mdl
     else:
         retval = api.list_models(
-            model_ids_sources=supported_env_models,
+            model_ids=supported_env_models,
             map_bounds=bounds,
             env_params=ujson.loads(request_type),
-            as_pyson=True,
             )
+
     return retval
-    
+
 @goods_validation.get()
 def validate_subset(request):
     '''
-   
+
     map_bounds is a polygon as a list of lon, lat pairs
     '''
     params = request.GET
     bounds = (float(params['WestLon']),
               float(params['SouthLat']),
-              float(params['EastLon']), 
+              float(params['EastLon']),
               float(params['NorthLat']))
     start = request.GET.get('start_time',None)
     end = request.GET.get('end_time',None)
@@ -122,15 +120,14 @@ def validate_subset(request):
     try:
         retval = api.validate_subset(
             model_id,
-            source,
             start,
             end,
             bounds
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
-        
-        
+
+
     return retval
 
 
@@ -196,7 +193,7 @@ def get_goods_map(request):
     log.info('Successfully uploaded file "{0}"'.format(file_path))
 
     return file_path, file_name
-    
+
 @goods_nws_wind.get()
 def get_nws_wind(request):
     '''
@@ -216,7 +213,7 @@ def get_nws_wind(request):
         data = api.NWS_point_wind(lon=params['longitude'],lat=params['latitude'])
     except ValueError as e:
         return cors_response(request, HTTPNotFound(e))
-                       
+
     return data
 
 
@@ -284,7 +281,6 @@ def create_goods_request(request):
                              request_type=request_type,
                              request_args={
                                  'model_id': params['model_id'],
-                                 'model_source': source,
                                  'start': start,
                                  'end': end,
                                  'bounds': bounds,
@@ -330,7 +326,7 @@ def goods_request(request):
     elif command == 'cancel':
         req_obj.cancel_request()
         return req_obj.to_response()
-    
+
     elif command == 'retry':
         req_obj.retry_request()
         return req_obj.to_response()
@@ -451,7 +447,7 @@ class GOODSRequest(object):
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
         self.logger = self.__class__.logger
-        
+
         #Communication attributes (should be reset if request retried)
         self.message = None  # set by worker thread
         self.state = 'preparing'
@@ -460,7 +456,7 @@ class GOODSRequest(object):
         # Process objects for subset and request operations
         self.subset_process = None
         self.request_process = None
-        
+
         # lock for main thread to clear on reconfirmation
         self.pause_event = threading.Event()
 
@@ -496,7 +492,7 @@ class GOODSRequest(object):
             raise ValueError('Subset operation not completed')
         else:
             self._subset_xr = subs
-        
+
 
     def start(self):
         logger = self.logger
@@ -511,7 +507,7 @@ class GOODSRequest(object):
 
         message_queue = multiprocessing.Queue()
         message_queue.write = message_queue.put
-        
+
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -570,7 +566,7 @@ class GOODSRequest(object):
         if status:
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
-            self._subset_xr = result 
+            self._subset_xr = result
             logger.info(str(self._subset_xr))
         else:
             self.message = status
@@ -578,7 +574,7 @@ class GOODSRequest(object):
 
         self._subset_finished = True
         self.percent = 0
-        self.subset_size = self._subset_xr.nbytes
+        self.subset_size = self._subset_xr.ds.nbytes
         if self.subset_size > self._max_size:
             self.too_large()
 
@@ -618,7 +614,7 @@ class GOODSRequest(object):
     def error(self, msg):
         self.state = 'error'
         self.message = msg
-    
+
     def reset(self):
         self.state = 'preparing'
         self.message = None
@@ -663,7 +659,7 @@ class GOODSRequest(object):
             except Exception as e:
                 self.logger.error('Request thread join error: ' + repr(e))
                 raise
-    
+
     def retry_request(self):
         self.reset()
         self.start()

@@ -32,37 +32,22 @@ __version__ = "1.1.3"
 
 logging.basicConfig()
 
-supported_ocean_models = {
-    # 'RTOFS-GLOBAL',
-    'ESPC': 'hycom-forecast-agg',
-    #'GOFS': 'hycom-forecast-agg',
-    'WCOFS': 'ioos-forecast-agg',
-    'NGOFS2_RGRID': 'ioos-forecast-agg',
-    # 'CREOFS': 'coops-forecast-noagg',
-    'CREOFS_RGRID': 'ioos-forecast-agg',
-    # 'LMHOFS': 'coops-forecast-noagg',
-    'LMHOFS_RGRID': 'ioos-forecast-agg',
-    'CIOFS': 'ioos-forecast-agg',
-    # 'LSOFS': 'coops-forecast-agg',
-    'LSOFS_RGRID': 'ioos-forecast-agg',
-    'CBOFS': 'ioos-forecast-agg',
-    # 'LEOFS': 'coops-forecast-noagg',
-    'LEOFS_RGRID': 'ioos-forecast-agg',
-    'DBOFS': 'ioos-forecast-agg',
-    # 'LOOFS': 'coops-forecast-agg',
-    'LOOFS_RGRID': 'ioos-forecast-agg',
-    # 'SFBOFS': 'coops-forecast-noagg',
-    'SFBOFS_RGRID': 'ioos-forecast-agg',
-    'TBOFS': 'ioos-forecast-agg',
-    # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
-    'GOMOFS': 'ioos-forecast-agg',
-}
+supported_ocean_models = ['ESPC',
+                          'WCOFS',
+                          'NGOFS2',
+                          'LMHOFS',
+                          'LSOFS',
+                          'LOOFS',
+                          'LEOFS',
+                          'CIOFS',
+                          'CBOFS',
+                          'DBOFS',
+                          'SFBOFS',
+                          'TBOFS',
+                          'GOMOFS',
+                          ]
 
-supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
-                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
-                        # 'GFS_1DEG': ['ucar-forecast-agg', ]
-                        }
-
+supported_met_models = ['GFS_1_4DEG', 'GFS_1_2DEG']
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
