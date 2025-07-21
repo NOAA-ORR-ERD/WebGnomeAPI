@@ -45,8 +45,6 @@ supported_ocean_models = ['ESPC',
                           'SFBOFS',
                           'TBOFS',
                           'GOMOFS',
-                          'SSCOFS',
-                          'TAMU',
                           ]
 
 supported_met_models = ['GFS_1_4DEG', 'GFS_1_2DEG']
