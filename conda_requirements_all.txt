@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2025-05-15
+# on 2025-07-31
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -13,7 +13,7 @@
 # build_requirements_file.py script.
 
 python=3.10
-python>=3.10,<=3.12
+python>=3.10,<=3.13
 awesome-slugify
 colander <2
 progressbar
@@ -36,7 +36,7 @@ pynucos>=3.4.0
 cell_tree2d
 py_gd>=2.3
 adios_db>=1.2.5
-python>=3.10,<3.13
+python>=3.10,<3.14
 extract_model
 netCDF4  
 numpy
@@ -47,7 +47,7 @@ pandas
 yaml
 siphon
 fiona
-python>=3.9,<3.12
+python>=3.9,<3.14
 numpy
 regex
 awesome-slugify
