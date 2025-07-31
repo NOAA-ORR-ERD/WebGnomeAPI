@@ -82,8 +82,6 @@ class HTTPPythonError(HTTPServerError):
         })
 
     def prepare(self, environ):
-        body_tmpl = self.body_template_obj
-
         args = {
             'title': self.title,
             'status': self.status,
