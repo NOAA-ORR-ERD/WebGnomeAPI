@@ -16,7 +16,7 @@ conda create -n webgnomeapi --file conda_requirements_all.txt
 
 """
 
-PYTHON_VER = "3.10"
+PYTHON_VER = "3.13"
 
 import datetime
 from pathlib import Path
