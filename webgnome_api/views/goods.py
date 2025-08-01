@@ -21,7 +21,7 @@ from pyramid.httpexceptions import (HTTPInsufficientStorage,
                                     HTTPNotFound)
 
 from webgnome_api.common.system_resources import get_free_space
-from webgnome_api.common.common_object import (get_session_dir,)
+from webgnome_api.common.common_object import (get_session_dir, get_archive_dir)
 from webgnome_api.common.session_management import (get_session_objects,
                                                     register_exportable_file)
 from webgnome_api.common.views import (cors_policy,
@@ -72,6 +72,7 @@ def get_model_metadata(request):
 
     map_bounds is a polygon as a list of lon, lat pairs
     '''
+
     bounds = request.GET.get('map_bounds', None)
     model_id = request.GET.get('model_id', None)
     request_type = request.GET.get('request_type')
@@ -89,8 +90,9 @@ def get_model_metadata(request):
 
     if bounds:
         bounds = ujson.loads(bounds)
+
     if model_id:
-        mdl = api.get_model_info(model_id)
+        mdl = api.get_model_info(model_id, os.path.abspath(get_archive_dir(request)))
         return mdl
     else:
         retval = api.list_models(
@@ -122,7 +124,8 @@ def validate_subset(request):
             model_id,
             start,
             end,
-            bounds
+            bounds,
+            archive_dir = os.path.abspath(get_archive_dir(request))
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
@@ -287,6 +290,7 @@ def create_goods_request(request):
                                  'surface_only': surface_only,
                                  'cross_dateline': cross_dateline,
                                  'environmental_parameters': request_type,
+                                 'archive_dir': os.path.abspath(get_archive_dir(request))
                              },
                              tshift=tshift,
                              _debug=False)
