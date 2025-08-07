@@ -217,7 +217,7 @@ setup(name='webgnome_api',
       classifiers=["Programming Language :: Python",
                    "Framework :: Pylons",
                    "Topic :: Internet :: WWW/HTTP",
-                   "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
+                   "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
                    ],
       keywords="adios gnome oilspill weathering trajectory modeling",
       author='ADIOS/GNOME team at NOAA ORR',

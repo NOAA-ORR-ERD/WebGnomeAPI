@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webgnome_api"
+
+# TODO: we need a way to make this dynamic like the old description.
+description = "WebGnomeAPI: A web service that interfaces with py_gnome"
+
+dynamic = ["version", "readme"]
+requires-python = ">=3.10"
+license = "CC0-1.0"
+keywords = ["adios", "gnome", "oilspill", "modeling", "weathering", "trajectory"]
+authors = [
+  { name = "Gnome team at NOAA/ORR/ERD", email = "orr.gnome@noaa.gov" },
+]
+classifiers = [
+  "Development Status :: 4 - Production/Stable",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Framework :: Pylons",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+
+]
+dependencies = []
+
+[project.urls]
+Documentation = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi#readme"
+Issues = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi/-/issues"
+Source = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["webgnome_api*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "webgnome_api.__version__"}
+readme = {file = ["README.rst"]}
+
+[tool.setuptools.package-data]
+webgnome_api = []
+
+[tool.coverage.run]
+source_pkgs = ["temporary", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/temporary/__about__.py",
+]
+
+[tool.coverage.paths]
+temporary = ["src/temporary", "*/temporary/src/temporary"]
+tests = ["tests", "*/temporary/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
