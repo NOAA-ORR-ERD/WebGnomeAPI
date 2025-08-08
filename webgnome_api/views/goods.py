@@ -21,7 +21,7 @@ from pyramid.httpexceptions import (HTTPInsufficientStorage,
                                     HTTPNotFound)
 
 from webgnome_api.common.system_resources import get_free_space
-from webgnome_api.common.common_object import (get_session_dir, get_archive_dir)
+from webgnome_api.common.common_object import get_session_dir
 from webgnome_api.common.session_management import (get_session_objects,
                                                     register_exportable_file)
 from webgnome_api.common.views import (cors_policy,
@@ -33,6 +33,7 @@ from webgnome_api import supported_ocean_models, supported_met_models
 
 try:
     from libgoods import api, FileTooBigError
+    import libgoods
 except ImportError:
     print("libgoods package not available "
           "-- its functionality will not be there")
@@ -92,8 +93,8 @@ def get_model_metadata(request):
         bounds = ujson.loads(bounds)
 
     if model_id:
-        mdl = api.get_model_info(model_id, os.path.abspath(get_archive_dir(request)))
-        return mdl
+        mdl = api.get_model(model_id)
+        return mdl.metadata
     else:
         retval = api.list_models(
             model_ids=supported_env_models,
@@ -117,15 +118,12 @@ def validate_subset(request):
     start = request.GET.get('start_time',None)
     end = request.GET.get('end_time',None)
     model_id = request.GET.get('model_id', None)
-    source = request.GET.get('source', None)
-
     try:
         retval = api.validate_subset(
             model_id,
             start,
             end,
             bounds,
-            archive_dir = os.path.abspath(get_archive_dir(request))
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
@@ -272,8 +270,6 @@ def create_goods_request(request):
     _file_name, unique_name = gen_unique_filename(fname, upload_dir)
     output_path = os.path.join(upload_dir, unique_name)
 
-    source = params.get('source')
-
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
     goods_req = GOODSRequest(start_time=datetime.datetime.now(),
@@ -290,7 +286,6 @@ def create_goods_request(request):
                                  'surface_only': surface_only,
                                  'cross_dateline': cross_dateline,
                                  'environmental_parameters': request_type,
-                                 'archive_dir': os.path.abspath(get_archive_dir(request))
                              },
                              tshift=tshift,
                              _debug=False)
