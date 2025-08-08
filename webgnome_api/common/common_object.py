@@ -9,6 +9,8 @@ import logging
 
 from collections.abc import Iterable
 
+import pyramid.config
+
 from gnome.gnomeobject import GnomeId
 from gnome.utilities.orderedcollection import OrderedCollection
 from gnome.spill_container import SpillContainerPair
@@ -219,15 +221,6 @@ def get_persistent_dir(request):
         os.makedirs(persistent_dir)
 
     return persistent_dir
-
-def get_archive_dir(request):
-    local_archive_dir = os.path.normpath(request.registry.settings['local_archive_dir'])
-
-    if os.path.isdir(local_archive_dir) is False:
-        pass
-        #not sure what to do if it doesn't exist
-
-    return local_archive_dir
 
 @req_session_is_valid
 def get_session_dir(request):
