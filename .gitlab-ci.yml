@@ -51,23 +51,25 @@ test_src:
   script:
     - apt-get install -y redis
     - redis-server --daemonize yes
+# get libgoods
     - git clone --depth 1 -b $UPSTREAM_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+# install all the requirements
     - conda install -y python=$PYTHON_VER --file conda_requirements.txt
       --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
       --file /pygnome/py_gnome/conda_requirements.txt
     - pushd libgoods && pip install . && popd
     - pip install .
-
-    - python setup.py compilejson # is this duplicating what happens already in the setup.py?
+    - python location_files/compile_locations.py
+    - python location_files/test_locations.py
     - conda env export > webgnome_api/views/deployed_environment.yaml
-    - pytest webgnome_api/tests
-    - conda list > conda_packages.txt
-  artifacts:
-    when: always
-    expire_in: 15 days
-    paths:
-      - ./conda_packages.txt
+    - cd webgnome_api/tests & pytest
+  #   - conda list > conda_packages.txt
+  # artifacts:
+  #   when: always
+  #   expire_in: 15 days
+  #   paths:
+  #     - ./conda_packages.txt
 
 build_temp_img:
   stage: build_temp_img
@@ -116,7 +118,8 @@ test_img:
     - cd /webgnomeapi
     - conda install -y --file conda_requirements_test.txt
     - redis-server --daemonize yes
-    - pytest webgnome_api/tests
+    - pytest --pyargs webgnome_api
+#    - pytest webgnome_api/tests
 
 rename_temp_img:
   stage: rename_temp_img

@@ -54,7 +54,7 @@ version = {attr = "webgnome_api.__version__"}
 readme = {file = ["README.rst"]}
 
 [tool.setuptools.package-data]
-webgnome_api = []
+webgnome_api = ['views/deployed_environment.yaml']
 
 [tool.coverage.run]
 source_pkgs = ["temporary", "tests"]
