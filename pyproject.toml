@@ -36,6 +36,12 @@ Documentation = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi#readme"
 Issues = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi/-/issues"
 Source = "https://gitlab.orr.noaa.gov/gnome/webgnomeapi"
 
+[project.entry-points."paste.app_factory"]
+main = "webgnome_api:main"
+
+[project.entry-points."paste.server_factory"]
+srv = "webgnome_api:server_factory"
+
 [tool.setuptools]
 include-package-data = true
 
