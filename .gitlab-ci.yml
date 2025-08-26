@@ -63,7 +63,7 @@ test_src:
     - python location_files/compile_locations.py
     - python location_files/test_locations.py
     - conda env export > webgnome_api/views/deployed_environment.yaml
-    - cd webgnome_api/tests & pytest
+    - cd webgnome_api/tests && pytest
   #   - conda list > conda_packages.txt
   # artifacts:
   #   when: always
