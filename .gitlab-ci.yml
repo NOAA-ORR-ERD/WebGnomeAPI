@@ -1,5 +1,6 @@
 variables:
   PYTHON_VER: '3.13'
+  PYGNOME_PROJECT_ID: 7
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
 
@@ -49,15 +50,29 @@ test_src:
     - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   script:
+    ## We want to get the artifacts from the pygnome compile job, which is
+    ## a different CI pipeline altogether where:
+    ## - $PYGNOME_PROJECT_ID is the pygnome project id (defined as literal)
+    ## - $CI_COMMIT_BRANCH is the branch
+    ## - compile_pygnome is the job_name
+    - |
+      curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+      "https://gitlab.orr.noaa.gov/api/v4/projects/$PYGNOME_PROJECT_ID/jobs/artifacts/$CI_COMMIT_BRANCH/download?job=compile_pygnome" \
+      --output artifacts.zip
+    - ls -l artifacts.zip
+
     - apt-get install -y redis
     - redis-server --daemonize yes
-# get libgoods
+
+    # get libgoods
     - git clone --depth 1 -b $UPSTREAM_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-# install all the requirements
+
+    # install all the requirements
     - conda install -y python=$PYTHON_VER --file conda_requirements.txt
       --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
       --file /pygnome/py_gnome/conda_requirements.txt
+
     - pushd libgoods && pip install . && popd
     - pip install .
     - python location_files/compile_locations.py
@@ -92,9 +107,11 @@ build_temp_img:
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker build -f dockerfile --build-arg CI_COMMIT_BRANCH --build-arg
-      PYTHON_VER=$PYTHON_VER --no-cache -t
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp .
+      docker build -f dockerfile --no-cache
+      --build-arg CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH
+      --build-arg PYTHON_VER=$PYTHON_VER
+      -t registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
+      .
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
