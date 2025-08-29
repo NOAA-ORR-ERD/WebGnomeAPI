@@ -49,6 +49,8 @@ test_src:
     - docker
     - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
+  before_script:
+    - apt-get install -y curl
   script:
     ## We want to get the artifacts from the pygnome compile job, which is
     ## a different CI pipeline altogether where:
