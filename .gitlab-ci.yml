@@ -63,6 +63,7 @@ test_src:
       --output artifacts.zip
     - ls -l artifacts.zip || echo "no file artifacts.zip"
     - unzip artifacts.zip || echo "can't read artifacts.zip"
+    - head artifacts.zip
 
     - apt-get install -y redis
     - redis-server --daemonize yes
