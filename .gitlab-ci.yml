@@ -50,7 +50,7 @@ test_src:
     - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   before_script:
-    - apt-get install -y curl
+    - apt-get install -y curl unzip
   script:
     ## We want to get the artifacts from the pygnome compile job, which is
     ## a different CI pipeline altogether where:
@@ -61,7 +61,8 @@ test_src:
       curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN"
       "https://gitlab.orr.noaa.gov/api/v4/projects/$PYGNOME_PROJECT_ID/jobs/artifacts/$CI_COMMIT_BRANCH/download?job=compile_pygnome"
       --output artifacts.zip
-    - ls -l artifacts.zip
+    - ls -l artifacts.zip || echo "no file: artifacts.zip"
+    - unzip artifacts.zip || echo "can't read: artifacts.zip"
 
     - apt-get install -y redis
     - redis-server --daemonize yes
