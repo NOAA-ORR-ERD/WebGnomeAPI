@@ -62,8 +62,8 @@ test_src:
     #  "https://gitlab.orr.noaa.gov/api/v4/projects/$PYGNOME_PROJECT_ID/jobs/artifacts/$CI_COMMIT_BRANCH/download?job=compile_pygnome"
     #  --output artifacts.zip
     - >
-      curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN"
-      "https://gitlab.orr.noaa.gov/api/v4/projects/7/jobs/artifacts/rework_deploy_pipeline/download?job=compile_pygnome"
+      curl
+      "https://gitlab.orr.noaa.gov/api/v4/projects/7/jobs/artifacts/rework_deploy_pipeline/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
       --output artifacts.zip
     - ls -l artifacts.zip || echo "no file artifacts.zip"
     - unzip artifacts.zip || echo "can't read artifacts.zip"
