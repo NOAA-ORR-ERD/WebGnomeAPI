@@ -1,5 +1,5 @@
 variables:
-  PYTHON_VER: '3.10'
+  PYTHON_VER: '3.13'
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
 

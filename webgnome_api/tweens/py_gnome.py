@@ -127,21 +127,21 @@ class PyGnomeSchemaTweenFactory(object):
         return re.sub(self.HTMLsanitize, '_', s)
 
     def sanitizeJSON(self, json_):
-            # response should be a JSON structure
-            # Removes dangerous HTML from the body of the response
-            if isinstance(json_, str):
-                return self.sanitize_string(json_)
-            elif isinstance(json_, list):
-                # array case
-                for j, val in enumerate(json_):
-                    json_[j] = self.sanitizeJSON(val)
-            else:
-                # object case
-                if hasattr(json_, 'items'):
-                    for k, v in json_.items():
-                        json_[k] = self.sanitizeJSON(v)
+        # response should be a JSON structure
+        # Removes dangerous HTML from the body of the response
+        if isinstance(json_, str):
+            return self.sanitize_string(json_)
+        elif isinstance(json_, list):
+            # array case
+            for j, val in enumerate(json_):
+                json_[j] = self.sanitizeJSON(val)
+        else:
+            # object case
+            if hasattr(json_, 'items'):
+                for k, v in json_.items():
+                    json_[k] = self.sanitizeJSON(v)
 
-            return json_
+        return json_
 
     def __call__(self, request):
         self.before_the_handler(request)

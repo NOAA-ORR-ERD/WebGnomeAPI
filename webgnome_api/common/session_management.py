@@ -176,6 +176,7 @@ def unregister_exportable_file(request, basename):
         del session['registered_files'][basename]
         session.do_persist()
 
+
 def search_registered_file(request, basename, obj_id=None):
     # If an obj_id is provided, if the object is registered in the session
     # then we can search for possible filenames in the object schema
@@ -192,6 +193,7 @@ def search_registered_file(request, basename, obj_id=None):
             return None
     else:
         return get_registered_file(request, basename)
+
 
 def get_registered_file(request, basename):
     return request.session.get('registered_files', {}).get(basename, None)

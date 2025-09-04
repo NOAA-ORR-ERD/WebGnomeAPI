@@ -214,7 +214,7 @@ def JSONImplementedType(json_obj, obj_types):
         :param json_obj: JSON payload
         :param obj_types: list of fully qualified object names.
     '''
-    if not type(json_obj) == dict:
+    if not isinstance(json_obj, dict):
         raise ValueError('JSON needs to be a dict')
 
     if 'obj_type' not in json_obj:
