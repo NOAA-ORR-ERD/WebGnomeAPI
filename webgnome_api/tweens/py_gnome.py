@@ -110,6 +110,16 @@ class PyGnomeSchemaTweenFactory(object):
             #       and then turn it back into a string.
             #       I tried just leaving it as a JSON object, but the
             #       request body doesn't accept anything but a string.
+            # NOTE: agree that tween seems to make sense, but maybe not.
+            #       from the docs:
+
+            # "A bit of code that sits between the Pyramid router's main request
+            #  handling function and the upstream WSGI component that uses
+            #  Pyramid as its 'app'. "
+            #
+            # so I think it's a bit more "raw" -- it's really supposed to handle
+            # the raw request object -- e.g. strings as body
+            # there's probably another place this kind of code could go.
             request.body = ujson.dumps(json_request).encode('utf-8')
 
         self.generate_short_session_id(request)
