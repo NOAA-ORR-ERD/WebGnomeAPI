@@ -353,7 +353,7 @@ deploy_api_dev:
       docker service create 
       --name $CONTAINER_NAME --network $APP_NETWORK
       --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models 
-      --mount source=/data/libgoods-cache,destination=/webgnomeapi/libgoods-cache
+      --mount source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
       --network $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
