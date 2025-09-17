@@ -27,6 +27,7 @@ stages:
   - test_img
   - rename_temp_img
   #- remove_temp_img
+  - build
   - deploy
   - maintenance
 
@@ -905,3 +906,23 @@ docker stage tidy:
     - deploy
     - gnome-stage
 
+build pypi package:
+  stage: build
+  image: registry.orr.noaa.gov/erd/environments/ubuntu/ubuntuforge-python${PYTHON_VER}
+  tags:
+    - docker
+  script:
+    - |
+      conda install python=$PYTHON_VER \
+      --file py_gnome/conda_requirements.txt \
+      --file py_gnome/conda_requirements_build.txt
+    - pip install libgoods==2.0.4 --index-url
+      https://gitlab.orr.noaa.gov/api/v4/projects/305/packages/pypi/simple
+    - pip install gnome==1.1.19.dev0 --index-url
+      https://gitlab.orr.noaa.gov/api/v4/projects/7/packages/pypi/simple
+    - python -m pip install build twine
+    - cd webgnome_api
+    - python -m build -o pydist
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m
+      twine upload --repository-url
+      ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi ./pydist/*
