@@ -23,6 +23,8 @@ variables:
 stages:
   - util
   - test_src
+  - build
+  - test
   - build_temp_img
   - test_img
   - rename_temp_img
