@@ -922,3 +922,10 @@ include:
       image-name: 'webgnomeapi-mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
       dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
       latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
+      build-args:
+        - 'BUILD_KEY=${BUILD_KEY}' 
+        - 'PYTHON_VER=${PYTHON_VER}' 
+        - 'PYGNOME_VER=${PYGNOME_VER}'
+        - 'LIBGOODS_VER=${LIBGOODS_VER}'
+        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}' 
+        - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
