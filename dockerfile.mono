@@ -28,4 +28,6 @@ COPY ./help ./help
 COPY ./mono-config.ini ./config.ini
 RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
 
-ENTRYPOINT ["/bin/bash", "-c", "source ~/.bashrc && pserve config.ini"]
+ENV BASH_ENV "/root/.bashrc"
+
+ENTRYPOINT ["/bin/bash", "-c", "pserve config.ini"]
