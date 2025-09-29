@@ -101,8 +101,8 @@ test docker image:
     - apt update
     - apt install redis -y
     - redis-server --daemonize yes
-    - source ~/.bashrc && pip install pytest webtest>=2.0 testfixtures
-    - source ~/.bashrc && pytest --pyargs webgnome_api
+    - ./env/bin/pip install pytest webtest>=2.0 testfixtures
+    - ./env/bin/pytest --pyargs webgnome_api
 
 ###
 ###
