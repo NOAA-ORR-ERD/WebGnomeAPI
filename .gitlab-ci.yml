@@ -3,6 +3,7 @@ variables:
   PYGNOME_PROJECT_ID: '7'
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+  MY_SERVER_ROLE_TAG: 'gnome'
 
 # Ok, here is the strategy I believe we want for our pipeline.
 # - First, we test our sources.
@@ -22,27 +23,19 @@ variables:
 
 stages:
   - util
-  - test_src
   - build
   - test
-  - build_temp_img
-  - test_img
-  - rename_temp_img
-  #- remove_temp_img
   - deploy
   - maintenance
 
-services:
-  - redis:latest
-
-test_src:
-  stage: test_src
+test source:
+  stage: test
   rules:
     - if:
         ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
         $CI_COMMIT_BRANCH != "production")
       variables:
-        UPSTREAM_BRANCH: "develop"
+        UPSTREAM_BRANCH: 'develop'
     - if: $CI_PIPELINE_SOURCE == "pipelines"
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedules"
@@ -64,7 +57,8 @@ test_src:
       "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
       --output artifacts.zip
     - ls -l artifacts.zip || echo "no file artifacts.zip"
-    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read artifacts.zip"
+    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
+      artifacts.zip"
     - head artifacts.zip
 
     - apt-get install -y redis
@@ -75,9 +69,9 @@ test_src:
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
 
     # install all the requirements
-    - conda install -y python=$PYTHON_VER --file conda_requirements.txt
-      --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
-      --file /pygnome/py_gnome/conda_requirements.txt
+    - conda install -y python=$PYTHON_VER --file conda_requirements.txt --file
+      conda_requirements_test.txt --file libgoods/conda_requirements.txt --file
+      /pygnome/py_gnome/conda_requirements.txt
 
     - pushd libgoods && pip install . && popd
     - pip install .
@@ -92,38 +86,10 @@ test_src:
   #   paths:
   #     - ./conda_packages.txt
 
-build_temp_img:
-  stage: build_temp_img
-  only:
-    - main
-    - develop
-    - production
-  except:
-    - pipelines
-    - schedules
-  tags:
-    - shell
-    - build
-  script:
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
-
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker build -f dockerfile --no-cache
-      --build-arg CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH
-      --build-arg PYTHON_VER=$PYTHON_VER
-      -t registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-      .
-
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-
-test_img:
-  stage: test_img
+test docker image:
+  stage: test
+  needs:
+    - Build Mono Image
   only:
     - develop
     - main
@@ -135,69 +101,13 @@ test_img:
     - docker
     - linux
   image:
-    name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: [""]
+    name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
+    entrypoint: ['']
   script:
     - cd /webgnomeapi
     - conda install -y --file conda_requirements_test.txt
     - redis-server --daemonize yes
     - pytest --pyargs webgnome_api
-#    - pytest webgnome_api/tests
-
-rename_temp_img:
-  stage: rename_temp_img
-  only:
-    - develop
-    - main
-    - production
-  except:
-    - pipelines
-    - schedules
-  tags:
-    - shell
-    - build
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    - >
-      docker image tag
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    - docker image rm
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-
-# Ok, this almost works, but there is a problem, in that /bin/reg will remove
-# the image and all tags associated with it, including the one we wanted to keep.
-# It looks like there will be a new tagging API soon, but not yet.
-# So we will hold off on running this task for now.
-#remove_temp_img:
-#  stage: remove_temp_img
-#  only:
-#    - develop
-#    - main
-#    - production
-#  image: docker:stable
-#  tags:
-#    - docker
-#  services:
-#    - docker:stable-dind
-#  variables:
-#    REG_SHA256: 97ca5b3105ef32fcc124c362d87721af549da444f2bb4550f7a2ecd4c9206ebe
-#    REG_VERSION: 0.16.1
-#  before_script:
-#    - apk add --no-cache curl
-#    - >
-#      curl --fail --show-error
-#      --location "https://github.com/genuinetools/reg/releases/download/v$REG_VERSION/reg-linux-386"
-#      --output /usr/local/bin/reg
-#    - echo "$REG_SHA256  /usr/local/bin/reg" | sha256sum -c -
-#    - chmod a+x /usr/local/bin/reg
-#  script:
-#    - >
-#      /usr/local/bin/reg rm -d --auth-url $CI_REGISTRY
-#      -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
-#      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
 
 ###
 ###
@@ -645,19 +555,17 @@ deploy_proxy_production:
     - ls -la /etc/ssl/certs/*
     - docker service rm webgnome_api_loadbalancer || true
     - >
-      docker service create
-      --name webgnome_api_loadbalancer
-      --network $APP_NETWORK
-      --mount type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
+      docker service create --name webgnome_api_loadbalancer --network
+      $APP_NETWORK --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
       haproxy:2.3
     - docker service rm $CONTAINER_NAME || true
     - >
-      docker service create
-      --name $CONTAINER_NAME
-      --network $APP_NETWORK
-      -p $PORT_MAPPING1 -p $PORT_MAPPING2
-      --mount type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
-      --mount type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
+      docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
+      $PORT_MAPPING1 -p $PORT_MAPPING2 --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
+      --mount
+      type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
       --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
       $IMAGE_TAG
     - docker service ls
@@ -768,11 +676,89 @@ stop_docs_production:
 
 ###
 ###
+###  RHEL deployment
+###
+###
+
+Build Development Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'Development'
+    TF_VAR_environment_tag: 'Development'
+    TF_VAR_application_name: 'gnome-dev'
+    TF_VAR_instance_count: 1
+    TF_VAR_vm_cpu_cores_per_socket: 1
+    TF_VAR_vm_cpu_cores: 4
+    TF_VAR_vm_memory: 4096
+    TF_VAR_vm_data_disk_size: 100
+    TF_VAR_vm_disk_size: 100
+    TF_ROOT: 'terraform/vmware'
+    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+Build Staging Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'Staging'
+    TF_VAR_environment_tag: 'Staging'
+    TF_VAR_application_name: 'gnome-stg'
+    TF_VAR_instance_count: 1
+    TF_VAR_vm_cpu_cores_per_socket: 1
+    TF_VAR_vm_cpu_cores: 4
+    TF_VAR_vm_memory: 4096
+    TF_VAR_vm_data_disk_size: 100
+    TF_VAR_vm_disk_size: 100
+    TF_ROOT: 'terraform/vmware'
+    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+###
+###
 ### Maintenance tasks
 ###
 ###
 
-prune_session_folders_dev:
+.prune_session_folders_dev:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -787,9 +773,10 @@ prune_session_folders_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
-prune_tmp_files_dev:
+.prune_tmp_files_dev:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -804,9 +791,10 @@ prune_tmp_files_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
-prune_session_folders_stage:
+.prune_session_folders_stage:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -821,9 +809,10 @@ prune_session_folders_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
-prune_tmp_files_stage:
+.prune_tmp_files_stage:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -838,9 +827,10 @@ prune_tmp_files_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
-prune_session_folders_production:
+.prune_session_folders_production:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -855,9 +845,10 @@ prune_session_folders_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
-prune_tmp_files_production:
+.prune_tmp_files_production:
   stage: maintenance
   image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
   rules:
@@ -872,7 +863,8 @@ prune_tmp_files_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 .docker tidy:
   stage: util
@@ -880,27 +872,27 @@ prune_tmp_files_production:
   script:
     - docker system prune -f -a --volumes
 
-docker prod tidy:
+.docker prod tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - production
   tags:
     - deploy
     - gnome-prod
 
-docker dev tidy:
+.docker dev tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - develop
   tags:
     - deploy
     - gnome-dev
 
-docker stage tidy:
+.docker stage tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - main
   tags:
@@ -916,16 +908,16 @@ include:
         when: never
       - if: $CI_COMMIT_REF_NAME
     inputs:
-      job-name: 'Build MONO image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      job-name: 'Build Mono Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
       stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
       version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
       image-name: 'webgnomeapi-mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
       dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
       latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
       build-args:
-        - 'BUILD_KEY=${BUILD_KEY}' 
-        - 'PYTHON_VER=${PYTHON_VER}' 
+        - 'BUILD_KEY=${BUILD_KEY}' # (Optional) List of build arguments to pass to the Docker build process. Each argument should be in the format 'ARG_NAME=ARG_VALUE'.
+        - 'PYTHON_VER=${PYTHON_VER}'
         - 'PYGNOME_VER=${PYGNOME_VER}'
         - 'LIBGOODS_VER=${LIBGOODS_VER}'
-        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}' 
+        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
         - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
