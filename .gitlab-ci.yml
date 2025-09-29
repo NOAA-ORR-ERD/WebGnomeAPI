@@ -93,7 +93,8 @@ test docker image:
     - Build Mono Image
   tags:
     - docker
-    - linux
+    - Infrastructure
+    - docker-ci-templates
   image:
     name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
     entrypoint: ['']
