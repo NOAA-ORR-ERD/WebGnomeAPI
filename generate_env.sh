@@ -31,7 +31,7 @@ awk '!/^#/ && NF' ./pygnome/py_gnome/conda_requirements.txt | while read -r requ
 awk '!/^#/ && NF' ./libgoods/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 awk '!/^#/ && NF' ./webgnomeapi/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 
-pixi add --pypi build
+pixi add --pypi build pip
 
 echo "Build the Wheels 🛞"
 pixi run python -m build ./pygnome/py_gnome -o ./pygnome-dist

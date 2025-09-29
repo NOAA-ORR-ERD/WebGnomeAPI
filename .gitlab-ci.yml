@@ -98,9 +98,10 @@ test docker image:
     name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
     entrypoint: ['']
   script:
-    - cd /webgnomeapi
-    - conda install -y --file conda_requirements_test.txt
+    - apt update
+    - apt install redis -y
     - redis-server --daemonize yes
+    - pip install pytest webtest>=2.0 testfixtures
     - pytest --pyargs webgnome_api
 
 ###
