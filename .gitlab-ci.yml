@@ -30,6 +30,7 @@ stages:
 
 test source:
   stage: test
+  needs: []
   rules:
     - if:
         ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
@@ -90,13 +91,6 @@ test docker image:
   stage: test
   needs:
     - Build Mono Image
-  only:
-    - develop
-    - main
-    - production
-  except:
-    - pipelines
-    - schedules
   tags:
     - docker
     - linux
