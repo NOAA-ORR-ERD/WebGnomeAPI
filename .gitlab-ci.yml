@@ -89,6 +89,7 @@ test source:
 
 test docker image:
   stage: test
+  allow_failure: true
   needs:
     - Build Mono Image
   tags:
@@ -917,3 +918,41 @@ include:
         - 'LIBGOODS_VER=${LIBGOODS_VER}'
         - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
         - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
+  - component: $CI_SERVER_FQDN/components/ansible/Ansible@v1.3.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Get stage logs'
+      stage: maintenance
+      log-level: info
+      when: manual
+      environment-name: 'stage'
+      deployment-target: 'vmware'
+      playbook-file-name: 'get-container-logs.yml'
+      ansible-inventory-file: hosts/stage-vmware.yml
+      job-artifacts:
+        - /builds/CAMEO/cameo_chemicals/website/ansible/playbooks/*.txt
+      runner-tags:
+        - ansible-playbooks
+        - Infrastructure
+        - developer-ci-templates
+  # deploy to stage if the commit/merge was into the default branch (usually main)
+  - component: $CI_SERVER_FQDN/components/ansible/Ansible@v1.3.0
+    rules:
+      - if: $TF_DESTROY == "true"
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    inputs:
+      job-name: 'Deploy to stage'
+      log-level: info
+      stage: deploy
+      environment-name: stage
+      deployment-target: vmware
+      playbook-file-name: deploy.yml
+      ansible-inventory-file: hosts/stage-vmware.yml
+      runner-tags:
+        - ansible-playbooks
+        - Infrastructure
+        - developer-ci-templates

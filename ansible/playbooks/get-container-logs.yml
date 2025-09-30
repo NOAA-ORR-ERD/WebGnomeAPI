@@ -1,0 +1,16 @@
+- hosts: all
+  become: true
+
+  tasks:
+    - name: Log cameo-chemicals
+      shell: docker logs cameo-chemicals > cameo-chemicals.txt 2>&1
+    - name: Log cc-mobile
+      shell: docker logs cc-mobile > cc-mobile.txt 2>&1
+    - name: Download Logs
+      ansible.builtin.fetch:
+        src: '{{ item }}'
+        dest: ./
+        flat: yes
+      loop:
+        - ./cameo-chemicals.txt
+        - ./cc-mobile.txt
