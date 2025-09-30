@@ -9,7 +9,7 @@ FROM registry.orr.noaa.gov/erd/environments/ubuntu-pixi:latest AS api
 ARG BUILD_KEY=
 ARG PYTHON_VER=3.13
 ARG PYGNOME_VER=main
-ARG LIBGOODS_VER=main
+ARG LIBGOODS_VER=develop
 ARG WEBGNOME_API_VER=main
 
 COPY ./generate_env.sh ./
