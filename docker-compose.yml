@@ -16,6 +16,17 @@ services:
       restart_policy:
         condition: on-failure
 
+  client:
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/webgnomeapi-mono:${CI_COMMIT_BRANCH:-latest}
+    networks:
+      - app-network
+    entrypoint: [""]
+    command: /bin/bash -c 'cd /webgnomeclient && /env/bin/python -m http.server'
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
   api:
     image: registry.orr.noaa.gov/gnome/webgnomeapi/webgnomeapi-mono:${CI_COMMIT_BRANCH:-latest}
     networks:
@@ -194,7 +205,7 @@ configs:
               }
 
               location / {
-                  set $$client "http://webgnome_client:8080";
+                  set $$client "http://webgnome_client:8000";
                   proxy_pass $$client;
               }
 

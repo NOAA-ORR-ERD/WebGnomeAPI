@@ -3,6 +3,7 @@
 # environment with everything installed like we want, then copy 
 # that environment over to a minimal base image. The self-extracting
 # script will install the full python environment.
+ARG WEBGNOME_CLIENT_VER=main
 
 FROM registry.orr.noaa.gov/erd/environments/ubuntu-pixi:latest AS api
 
@@ -15,9 +16,9 @@ ARG WEBGNOME_API_VER=main
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
 
-FROM node:lts AS client
+FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client
 
-ARG WEBGNOME_CLIENT_VER=main
+RUN cd /webgnomeclient && grunt build
 
 
 FROM debian:stable-slim
@@ -26,6 +27,7 @@ COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
 COPY ./mono-config.ini ./config.ini
+COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
 
 ENV BASH_ENV "/root/.bashrc"
