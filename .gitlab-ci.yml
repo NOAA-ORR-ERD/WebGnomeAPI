@@ -3,6 +3,10 @@ variables:
   PYGNOME_PROJECT_ID: '7'
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+  PYGNOME_VER: main
+  LIBGOODS_VER: develop
+  WEBGNOME_API_VER: main
+  WEBGNOME_CLIENT_VER: main
   MY_SERVER_ROLE_TAG: 'gnome'
 
 # Ok, here is the strategy I believe we want for our pipeline.
