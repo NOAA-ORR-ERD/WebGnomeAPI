@@ -931,9 +931,6 @@ include:
       - if: $CI_COMMIT_REF_NAME
     inputs:
       before-script:
-        - "curl --silent
-          'https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer'
-          | bash"
         - git clone
           https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/data.git
           --depth=1

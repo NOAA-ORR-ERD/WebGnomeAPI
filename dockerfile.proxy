@@ -1,4 +1,7 @@
+FROM registry.orr.noaa.gov/system-admins/container-registry/sidecar-traefik/sidecar-traefik:1.1.2 AS certfarm
+
 FROM nginx:latest
 
-COPY .secure_files/* /etc/ssl/certs/
+COPY --from=certfarm /etc/ssl/certs/orr.noaa.gov.key /etc/ssl/certs/orr.noaa.gov.key
+COPY --from=certfarm /etc/ssl/certs/orr.noaa.gov.crt /etc/ssl/certs/orr.noaa.gov.crt
 COPY ./data/*	/usr/share/nginx/html/py_gnome_testdata/
