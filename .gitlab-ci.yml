@@ -923,10 +923,11 @@ include:
       - changes:
           - dockerfile.proxy
     inputs:
-      before_script:
+      before-script:
         - curl --silent
           "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer"
           \| bash
+        - git clone https://gitlab.orr.noaa.gov/gnome/data.git --depth=1
       job-name: 'Build Proxy Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
       stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
       version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
