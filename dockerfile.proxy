@@ -1,0 +1,4 @@
+FROM nginx:latest
+
+COPY .secure_files/* /etc/ssl/certs/
+COPY ./data/*	/usr/share/nginx/html/py_gnome_testdata/

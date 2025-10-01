@@ -918,6 +918,21 @@ include:
         - 'LIBGOODS_VER=${LIBGOODS_VER}'
         - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
         - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
+  - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
+    rules:
+      - changes:
+          - dockerfile.proxy
+    inputs:
+      before_script:
+        - curl --silent
+          "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer"
+          \| bash
+      job-name: 'Build Proxy Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
+      version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
+      image-name: 'proxy' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
+      dockerfile-path: dockerfile.proxy # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
+      latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
   - component: $CI_SERVER_FQDN/components/ansible/Ansible@v1.3.0
     rules:
       - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
