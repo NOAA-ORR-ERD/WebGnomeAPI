@@ -927,9 +927,9 @@ include:
       - if: $CI_COMMIT_REF_NAME
     inputs:
       before-script:
-        - curl --silent
-          "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer"
-          \| bash
+        - "curl --silent
+          'https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer'
+          | bash"
         - git clone https://gitlab.orr.noaa.gov/gnome/data.git --depth=1
       job-name: 'Build Proxy Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
       stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
