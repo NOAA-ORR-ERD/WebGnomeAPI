@@ -150,8 +150,8 @@ configs:
           server {
               listen 443 ssl;
               server_name gnome.orr.noaa.gov;
-              # ssl_certificate /etc/ssl/certs/certbundle.pem;
-              # ssl_certificate_key /etc/ssl/certs/orr.noaa.gov.key;
+              ssl_certificate /etc/ssl/certs/certbundle.pem;
+              ssl_certificate_key /etc/ssl/certs/orr.noaa.gov.key;
               ssl_protocols TLSv1.3;
               ssl_ciphers HIGH:!aNULL:!MD5;
               client_max_body_size 20000G;
