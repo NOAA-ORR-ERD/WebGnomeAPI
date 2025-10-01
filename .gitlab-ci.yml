@@ -920,8 +920,11 @@ include:
         - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
   - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
     rules:
-      - changes:
-          - dockerfile.proxy
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
+        when: never
+      - if: $CI_COMMIT_REF_NAME
     inputs:
       before-script:
         - curl --silent
