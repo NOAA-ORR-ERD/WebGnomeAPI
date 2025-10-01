@@ -45,16 +45,12 @@ services:
         target: /usr/local/etc/haproxy/haproxy.cfg
 
   proxy:
-    image: nginx:latest
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/proxy:latest
     ports:
       - "80:80"
       - "443:443"
     networks:
       - app-network
-    volumes:
-      - type: bind
-        source: ${GNOME_TESTDATA_FOLDER:-./test_data}
-        target: /usr/share/nginx/html/py_gnome_testdata/
     depends_on:
       - api_lb
       - goods
@@ -163,7 +159,7 @@ configs:
               location /socket.io {
                   proxy_http_version 1.1;
                   proxy_pass http://api_lb;
-                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Upgrade $$http_upgrade;
                   proxy_set_header Connection "Upgrade";
               }
 
@@ -171,7 +167,7 @@ configs:
                   proxy_http_version 1.1;
                   rewrite ^/api(.*)$ $1 break;
                   proxy_pass http://api_lb;
-                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Upgrade $$http_upgrade;
                   proxy_set_header Connection "Upgrade";
               }
 
@@ -179,7 +175,7 @@ configs:
                   proxy_http_version 1.1;
                   rewrite ^/api(.*)$ $1 break;
                   proxy_pass http://api_lb;
-                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Upgrade $$http_upgrade;
                   proxy_set_header Connection "Upgrade";
               }
 
@@ -198,8 +194,8 @@ configs:
               }
 
               location / {
-                  set $client "http://webgnome_client:8080";
-                  proxy_pass $client;
+                  set $$client "http://webgnome_client:8080";
+                  proxy_pass $$client;
               }
 
               location /goods {
