@@ -11,12 +11,15 @@ class ReleaseTests(FunctionalTestBase):
     req_data = {'obj_type': 'gnome.spills.release.PointLineRelease',
                 }
 
-    options_headers = {'Origin': 'http://0.0.0.0:8080',
+    options_headers = {#'Origin': 'http://0.0.0.0:8080',
+                       # this needs to match cors_policy.origins in config-test.ini
+                       'Origin': 'http://0.0.0.0:9999',
                        'Access-Control-Request-Method': 'GET'}
+
 
     def test_options(self):
         '''
-            TODO: Maybe testing the options shoould be in a separate
+            TODO: Maybe testing the options should be in a separate
                   module that covers the options for all entry points.
         '''
         resp = self.testapp.options('/release',
