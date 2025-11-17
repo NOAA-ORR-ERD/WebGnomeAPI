@@ -1,6 +1,8 @@
 """
 Functional tests for the Gnome Release object Web API
 """
+import pytest
+import webtest
 from .base import FunctionalTestBase
 
 
@@ -11,7 +13,7 @@ class ReleaseTests(FunctionalTestBase):
     req_data = {'obj_type': 'gnome.spills.release.PointLineRelease',
                 }
 
-    options_headers = {#'Origin': 'http://0.0.0.0:8080',
+    options_headers = {# 'Origin': 'http://0.0.0.0:8080',
                        # this needs to match cors_policy.origins in config-test.ini
                        'Origin': 'http://0.0.0.0:9999',
                        'Access-Control-Request-Method': 'GET'}
@@ -21,12 +23,28 @@ class ReleaseTests(FunctionalTestBase):
         '''
             TODO: Maybe testing the options should be in a separate
                   module that covers the options for all entry points.
+            ?? - is this testing any "options" other than CORS access??
+
+            TODO: another test to make sure that access fails if the request comes
+                  from somewhere else.
         '''
         resp = self.testapp.options('/release',
                                     headers=self.options_headers)
         resp_methods = set(resp.headers['Access-Control-Allow-Methods']
                            .lower().split(','))
         assert resp_methods == {'get', 'head', 'options', 'post', 'put'}
+
+    def test_cors_no_access(self):
+        '''
+        Check that if the request comes from somethign not on the list
+        that it fails.
+        '''
+        headers = {'Origin': 'http://0.0.0.0:1111',
+                   'Access-Control-Request-Method': 'GET'}
+        with pytest.raises(webtest.app.AppError) as err:
+            resp = self.testapp.options('/release',
+                                        headers=headers)
+        assert 'Bad response: 400 Bad Request' in err.value.args[0]
 
     def test_get_no_id(self):
         resp = self.testapp.get('/release')
