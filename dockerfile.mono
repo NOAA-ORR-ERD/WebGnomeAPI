@@ -28,12 +28,11 @@ FROM debian:stable-slim
 COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
-COPY ./mono-config.ini ./config.ini
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
 ENV BASH_ENV="/root/.bashrc"
 
-RUN python ./location_files/compile_locations.py
+RUN bash -c "python ./location_files/compile_locations.py"
 
 
 ENTRYPOINT ["/bin/bash", "-c", "pserve config.ini"]
