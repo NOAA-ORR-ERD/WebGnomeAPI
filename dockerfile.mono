@@ -31,6 +31,7 @@ COPY ./help ./help
 COPY ./mono-config.ini ./config.ini
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
+RUN python ./location_files/compile_locations.py
 
 ENV BASH_ENV="/root/.bashrc"
 
