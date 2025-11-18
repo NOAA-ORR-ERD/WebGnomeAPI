@@ -35,6 +35,9 @@ services:
       - models:/webgnomeapi/models
     depends_on:
       - redis
+    configs:
+      - source: api_config
+        target: /config.ini
     deploy:
       replicas: ${API_SCALE:-10} # Defaulting to 10 if not set, original was 40
       endpoint_mode: dnsrr
@@ -123,8 +126,8 @@ configs:
       pyramid.includes = cornice
                         pyramid_session_redis
 
-      cors_policy.origins = https://gnome.orr.noaa.gov
-
+      cors_policy.origins = *
+                      
       redis.sessions.host = redis
       redis.sessions.port = 6379
       redis.sessions.secret = 12342C48
