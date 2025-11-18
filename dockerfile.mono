@@ -18,6 +18,8 @@ RUN ./generate_env.sh
 
 FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client
 
+COPY ./mono-config-client.json ./config.json
+
 RUN cd /webgnomeclient && grunt build
 
 
@@ -30,6 +32,6 @@ COPY ./mono-config.ini ./config.ini
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
 
-ENV BASH_ENV "/root/.bashrc"
+ENV BASH_ENV="/root/.bashrc"
 
 ENTRYPOINT ["/bin/bash", "-c", "pserve config.ini"]
