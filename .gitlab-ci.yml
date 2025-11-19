@@ -1050,7 +1050,7 @@ include:
       action: 'deploy'
       server-role-tag: $MY_SERVER_ROLE_TAG
       docker-compose-file-path: 'docker-compose.yml'
-      environment-name: 'staging'
+      environment-name: 'stage'
       log-level: 'debug'
       deployment-target: 'vmware'
       docker-compose-pull-images: true
