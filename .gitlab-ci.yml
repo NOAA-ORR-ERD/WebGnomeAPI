@@ -92,6 +92,8 @@ test source:
   #     - ./conda_packages.txt
 
 test docker image:
+  rules:
+    - if: $TF_DESTROY != 'true'
   stage: test
   allow_failure: true
   needs:
