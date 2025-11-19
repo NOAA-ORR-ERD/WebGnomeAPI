@@ -771,7 +771,7 @@ Build Production Server:
     TF_VAR_environment_tag: 'prod'
     TF_VAR_application_name: 'gnome-prod'
     TF_VAR_instance_count: 1
-    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+    TF_VAR_ami_name: $GLOBAL_LATEST_RHEL8_BASELINE
     TF_ROOT: 'terraform/aws'
     TF_VAR_account_tag: 'erma'
     TF_VAR_instance_type: 't3.xlarge'
