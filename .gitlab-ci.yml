@@ -349,9 +349,12 @@ deploy_api_dev:
     - docker pull $IMAGE_TAG
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models --network
-      $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
+    - >
+      docker service create 
+      --name $CONTAINER_NAME --network $APP_NETWORK
+      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models 
+      --mount source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
+      --network $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 

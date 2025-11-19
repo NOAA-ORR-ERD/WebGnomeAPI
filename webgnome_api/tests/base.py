@@ -22,7 +22,7 @@ class GnomeTestCase(TestCase):
         self.project_root = str(HERE.resolve())
 
     def get_settings(self,
-                     config_file='../../config-example.ini#webgnome_api'):
+                     config_file='../../config-test.ini#webgnome_api'):
         return appconfig('config:%s' % config_file, relative_to=str(HERE))
 
 
