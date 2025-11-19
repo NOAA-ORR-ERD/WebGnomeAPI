@@ -788,7 +788,7 @@ Build Production Server:
     include:
       - project: templates/developer-ci-templates
         ref: develop
-        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+        file: 'jobs/terraform/terraform.ec2.gitlab-ci.yml'
   rules:
     - if: $TF_DESTROY == 'true'
     - if: $CI_COMMIT_BRANCH
