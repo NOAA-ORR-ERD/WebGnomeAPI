@@ -1033,6 +1033,7 @@ include:
       log-level: 'debug'
       deployment-target: 'aws'
       docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1
       runner-tags:
         - 'docker'
         - 'aws'
@@ -1054,6 +1055,7 @@ include:
       log-level: 'debug'
       deployment-target: 'vmware'
       docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1
       docker-compose-environment-variables:
         - API_SCALE=10
 
@@ -1071,5 +1073,6 @@ include:
       log-level: 'debug'
       deployment-target: 'vmware'
       docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1
       docker-compose-environment-variables:
         - API_SCALE=1
