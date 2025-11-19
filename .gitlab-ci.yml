@@ -755,6 +755,45 @@ Build Staging Server:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
 
+Build Production Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'prod'
+    TF_VAR_environment_tag: 'prod'
+    TF_VAR_application_name: 'gnome-prod'
+    TF_VAR_instance_count: 1
+    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+    TF_ROOT: 'terraform/aws'
+    TF_VAR_account_tag: 'erma'
+    TF_VAR_instance_type: 't3.xlarge'
+    TF_VAR_root_volume_type: 'gp2'
+    TF_VAR_root_volume_size: 100
+    TF_VAR_data_volume_type: 'gp2'
+    TF_VAR_data_volume_size: 100
+    TF_VAR_subnet_id: 'subnet-041022ffbcb0cd6e8'
+    TF_VAR_security_group_id: 'sg-0cfd1c6f73bc2f1e5'
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH == 'production'
+    - if: $CI_COMMIT_TAG
+
 ###
 ###
 ### Maintenance tasks
@@ -980,3 +1019,57 @@ include:
         - ansible-playbooks
         - Infrastructure
         - developer-ci-templates
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Deploy Production'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'prod'
+      log-level: 'debug'
+      deployment-target: 'aws'
+      docker-compose-pull-images: true
+      runner-tags:
+        - 'docker'
+        - 'aws'
+        - 'us-west-2'
+        - 'prod'
+      docker-compose-environment-variables:
+        - API_SCALE=40
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Deploy Stage'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'staging'
+      log-level: 'debug'
+      deployment-target: 'vmware'
+      docker-compose-pull-images: true
+      docker-compose-environment-variables:
+        - API_SCALE=10
+
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Deploy Dev'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'dev'
+      log-level: 'debug'
+      deployment-target: 'vmware'
+      docker-compose-pull-images: true
+      docker-compose-environment-variables:
+        - API_SCALE=1
