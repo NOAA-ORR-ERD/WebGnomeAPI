@@ -3,11 +3,12 @@ variables:
   PYGNOME_PROJECT_ID: '7'
   APP_NETWORK: webgnome_net
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-  PYGNOME_VER: main
+  PYGNOME_VER: develop
   LIBGOODS_VER: develop
-  WEBGNOME_API_VER: main
-  WEBGNOME_CLIENT_VER: main
+  WEBGNOME_API_VER: develop
+  WEBGNOME_CLIENT_VER: develop
   MY_SERVER_ROLE_TAG: 'gnome'
+  LATEST_IMAGE: false
 
 # Ok, here is the strategy I believe we want for our pipeline.
 # - First, we test our sources.
@@ -941,28 +942,44 @@ stop_docs_production:
     - deploy
     - gnome-stage
 
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'production'
+      variables:
+        PYGNOME_VER: production
+        LIBGOODS_VER: develop
+        WEBGNOME_API_VER: production
+        WEBGNOME_CLIENT_VER: production
+        LATEST_IMAGE: true
+    - if: $CI_COMMIT_BRANCH == 'main'
+      variables:
+        PYGNOME_VER: main
+        LIBGOODS_VER: develop
+        WEBGNOME_API_VER: main
+        WEBGNOME_CLIENT_VER: main
+
 include:
-  # - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
-  #   rules:
-  #     - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
-  #       when: never
-  #     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
-  #       when: never
-  #     - if: $CI_COMMIT_REF_NAME
-  #   inputs:
-  #     job-name: 'Build Mono Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
-  #     stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
-  #     version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
-  #     image-name: 'webgnomeapi-mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
-  #     dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
-  #     latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
-  #     build-args:
-  #       - 'BUILD_KEY=${BUILD_KEY}' # (Optional) List of build arguments to pass to the Docker build process. Each argument should be in the format 'ARG_NAME=ARG_VALUE'.
-  #       - 'PYTHON_VER=${PYTHON_VER}'
-  #       - 'PYGNOME_VER=${PYGNOME_VER}'
-  #       - 'LIBGOODS_VER=${LIBGOODS_VER}'
-  #       - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
-  #       - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
+  - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Build mono:${CI_COMMIT_REF_NAME} Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
+      version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
+      image-name: 'mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
+      dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
+      latest: $LATEST_IMAGE # This boolean value determines if the 'latest' tag is applied to the image with the version
+      build-args:
+        - 'BUILD_KEY=${BUILD_KEY}'
+        - 'PYTHON_VER=${PYTHON_VER}'
+        - 'PYGNOME_VER=${PYGNOME_VER}'
+        - 'LIBGOODS_VER=${LIBGOODS_VER}'
+        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
+        - 'WEBGNOME_CLIENT_VER=${WEBNGOME_CLIENT_VER}'
   - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
     rules:
       - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
@@ -1023,7 +1040,7 @@ include:
     rules:
       - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
         when: never
-      - if: $CI_COMMIT_REF_NAME
+      - if: $CI_COMMIT_REF_NAME == 'production' # only deploy to production from the production branch
     inputs:
       job-name: 'Deploy Production'
       action: 'deploy'
@@ -1046,7 +1063,7 @@ include:
     rules:
       - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
         when: never
-      - if: $CI_COMMIT_REF_NAME
+      - if: $CI_COMMIT_REF_NAME == 'main' # only deploy to stage from the main branch
     inputs:
       job-name: 'Deploy Stage'
       action: 'deploy'
@@ -1060,12 +1077,11 @@ include:
       docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
       docker-compose-environment-variables:
         - API_SCALE=10
-
   - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
     rules:
       - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
         when: never
-      - if: $CI_COMMIT_REF_NAME
+      - if: $CI_COMMIT_REF_NAME # just update develop with whatever is the latest push regardless of origin
     inputs:
       job-name: 'Deploy Dev'
       action: 'deploy'
