@@ -32,7 +32,7 @@ stages:
   - deploy
   - maintenance
 
-test source:
+.test source:
   stage: test
   needs: []
   rules:
@@ -683,7 +683,7 @@ stop_docs_production:
 ###
 ###
 
-Build Development Server:
+.Build Development Server:
   stage: build
   needs: []
   variables:
@@ -719,7 +719,7 @@ Build Development Server:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
 
-Build Staging Server:
+.Build Staging Server:
   stage: build
   needs: []
   variables:
@@ -755,7 +755,7 @@ Build Staging Server:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
 
-Build Production Server:
+.Build Production Server:
   stage: build
   needs: []
   variables:
@@ -1033,7 +1033,8 @@ include:
       log-level: 'debug'
       deployment-target: 'aws'
       docker-compose-pull-images: true
-      docker-compose-max-parallel-connections: 1
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
       runner-tags:
         - 'docker'
         - 'aws'
@@ -1055,7 +1056,8 @@ include:
       log-level: 'debug'
       deployment-target: 'vmware'
       docker-compose-pull-images: true
-      docker-compose-max-parallel-connections: 1
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
       docker-compose-environment-variables:
         - API_SCALE=10
 
@@ -1073,6 +1075,7 @@ include:
       log-level: 'debug'
       deployment-target: 'vmware'
       docker-compose-pull-images: true
-      docker-compose-max-parallel-connections: 1
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
       docker-compose-environment-variables:
         - API_SCALE=1
