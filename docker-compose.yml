@@ -17,7 +17,7 @@ services:
         condition: on-failure
 
   client:
-    image: registry.orr.noaa.gov/gnome/webgnomeapi/webgnomeapi-mono:${CI_COMMIT_BRANCH:-latest}
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/mono:${CI_COMMIT_BRANCH:-latest}
     networks:
       - app-network
     entrypoint: [""]
@@ -28,7 +28,7 @@ services:
         condition: on-failure
 
   api:
-    image: registry.orr.noaa.gov/gnome/webgnomeapi/webgnomeapi-mono:${CI_COMMIT_BRANCH:-latest}
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/mono:${CI_COMMIT_BRANCH:-latest}
     networks:
       - app-network
     volumes:
