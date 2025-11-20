@@ -957,6 +957,7 @@ workflow:
         LIBGOODS_VER: develop
         WEBGNOME_API_VER: main
         WEBGNOME_CLIENT_VER: main
+    - if: $CI_COMMIT_REF_NAME
 
 include:
   - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
