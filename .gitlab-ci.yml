@@ -33,7 +33,7 @@ stages:
   - deploy
   - maintenance
 
-.test source:
+test source:
   stage: test
   needs: []
   rules:
@@ -92,26 +92,26 @@ stages:
   #   paths:
   #     - ./conda_packages.txt
 
-# test docker image:
-#   rules:
-#     - if: $TF_DESTROY != 'true'
-#   stage: test
-#   allow_failure: true
-#   needs:
-#     - Build Mono Image
-#   tags:
-#     - docker
-#     - Infrastructure
-#     - docker-ci-templates
-#   image:
-#     name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
-#     entrypoint: ['']
-#   script:
-#     - apt update
-#     - apt install redis -y
-#     - redis-server --daemonize yes
-#     - /env/bin/pip install pytest webtest>=2.0 testfixtures
-#     - /env/bin/pytest --pyargs webgnome_api
+test docker image:
+  rules:
+    - if: $TF_DESTROY != 'true'
+  stage: test
+  allow_failure: true
+  needs:
+    - Build Mono Image
+  tags:
+    - docker
+    - Infrastructure
+    - docker-ci-templates
+  image:
+    name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
+    entrypoint: ['']
+  script:
+    - apt update
+    - apt install redis -y
+    - redis-server --daemonize yes
+    - /env/bin/pip install pytest webtest>=2.0 testfixtures
+    - /env/bin/pytest --pyargs webgnome_api
 
 ###
 ###
