@@ -7,6 +7,7 @@ dump.rdb
 build/
 
 # python stuff:
+.coverage
 .pytest_cache/
 *.pyc
 *.swp
@@ -31,3 +32,4 @@ node_modules/
 /webgnome_api/tests/models/session
 /save_files
 /location_files/*/*/version.txt
+webgnome_api/webgnome_api.egg-info

@@ -110,6 +110,16 @@ class PyGnomeSchemaTweenFactory(object):
             #       and then turn it back into a string.
             #       I tried just leaving it as a JSON object, but the
             #       request body doesn't accept anything but a string.
+            # NOTE: agree that tween seems to make sense, but maybe not.
+            #       from the docs:
+
+            # "A bit of code that sits between the Pyramid router's main request
+            #  handling function and the upstream WSGI component that uses
+            #  Pyramid as its 'app'. "
+            #
+            # so I think it's a bit more "raw" -- it's really supposed to handle
+            # the raw request object -- e.g. strings as body
+            # there's probably another place this kind of code could go.
             request.body = ujson.dumps(json_request).encode('utf-8')
 
         self.generate_short_session_id(request)
@@ -127,21 +137,21 @@ class PyGnomeSchemaTweenFactory(object):
         return re.sub(self.HTMLsanitize, '_', s)
 
     def sanitizeJSON(self, json_):
-            # response should be a JSON structure
-            # Removes dangerous HTML from the body of the response
-            if isinstance(json_, str):
-                return self.sanitize_string(json_)
-            elif isinstance(json_, list):
-                # array case
-                for j, val in enumerate(json_):
-                    json_[j] = self.sanitizeJSON(val)
-            else:
-                # object case
-                if hasattr(json_, 'items'):
-                    for k, v in json_.items():
-                        json_[k] = self.sanitizeJSON(v)
+        # response should be a JSON structure
+        # Removes dangerous HTML from the body of the response
+        if isinstance(json_, str):
+            return self.sanitize_string(json_)
+        elif isinstance(json_, list):
+            # array case
+            for j, val in enumerate(json_):
+                json_[j] = self.sanitizeJSON(val)
+        else:
+            # object case
+            if hasattr(json_, 'items'):
+                for k, v in json_.items():
+                    json_[k] = self.sanitizeJSON(v)
 
-            return json_
+        return json_
 
     def __call__(self, request):
         self.before_the_handler(request)

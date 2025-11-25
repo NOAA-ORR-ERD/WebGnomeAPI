@@ -396,8 +396,8 @@ class CatsMoverTests(BaseMoverTests):
             for new object types.
         '''
         json_obj['scale_value'] = 2.0
-        json_obj['scale_refpoint'] = [-50.0, 50.0, 10.0]
-
+#        json_obj['scale_refpoint'] = [-50.0, 50.0, 10.0]
+        json_obj['scale_refpoint'] = [-72.705, 41.2275, 0.0]
         json_obj['up_cur_uncertain'] = 0.5
         json_obj['down_cur_uncertain'] = -0.5
         json_obj['left_cur_uncertain'] = -0.5
@@ -414,7 +414,9 @@ class CatsMoverTests(BaseMoverTests):
             for new object types.
         '''
         assert json_obj['scale_value'] == 2.0
-        assert json_obj['scale_refpoint'] == [-50.0, 50.0, 10.0]
+#        assert json_obj['scale_refpoint'] == [-50.0, 50.0, 10.0]
+        assert json_obj['scale_refpoint'] == [-72.705, 41.2275, 0.0]
+
 
         assert json_obj['up_cur_uncertain'] == 0.5
         assert json_obj['down_cur_uncertain'] == -0.5

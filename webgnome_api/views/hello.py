@@ -18,6 +18,7 @@ def get_package_info_response(request):
             '        <h1>WebGnome API Server Package Versions</h1>'
             f'         <p>{get_pkg_info_table("webgnome_api")}</p>'
             f'         <p>{get_pkg_info_table("gnome")}</p>'
+            f'         <p>{get_pkg_info_table("gridded")}</p>'
             f'         <p>{get_pkg_info_table("libgoods")}</p>'
             f'         <p>{get_pkg_info_table("adios_db")}</p>'
             f'         <p>{get_pkg_info_table("pynucos")}</p>'
@@ -47,7 +48,6 @@ def get_pkg_info_table(package):
                 rows.append([k + ':', msg_dict[k]])
     except  importlib.metadata.PackageNotFoundError:
         rows = [[f"name: {package}"], ["version: not installed"], ["author: unknown"]]
-
 
     return to_table(header_fields, rows)
 
