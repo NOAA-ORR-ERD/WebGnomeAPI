@@ -15,35 +15,20 @@ class TestHello(FunctionalTestBase):
     def test_hello(self):
         resp = self.testapp.get('/')
         resp = resp.unicode_body.strip()
-        print(resp)
 
-        """
-        <html>
-          <body>
-            <h1>WebGnome API Server Package Versions</h1>
-            <p>
-            <table>
-              <tr><th>webgnome_api</th></tr>
-              <tr><td>name:</td><td>webgnome_api</td></tr>
-              <tr><td>version:</td><td>0.9</td></tr>
-              <tr><td>author:</td><td>ADIOS/GNOME team at NOAA ORR</td></tr>
-            </table>
-            </p>
-            <p>
-            <table>
-              <tr><th>pygnome</th></tr>
-              <tr><td>name:</td><td>pyGnome</td></tr>
-              <tr><td>version:</td><td>1.1.7</td></tr>
-              <tr><td>author:</td><td>Gnome team at NOAA/ORR/ERD</td></tr>
-            </table>
-            </p>
-          </body>
-        </html>
-        """
+        # just to check while testing
+        # open("home.html", 'w', encoding='utf-8').write(resp)
 
         assert "<h1>WebGnome API Server Package Versions</h1>" in resp
         assert resp.startswith("<html>")
         assert resp.endswith("</html>")
+
+        # some of the table entries
+        assert "webgnome_api" in resp
+        assert "gnome" in resp
+        assert "libgoods" in resp
+        assert ("adios-db" in resp) or ("adios_db" in resp)
+        assert "pynucos" in resp
 
     def test_get_pkg_info_table1(self):
         from webgnome_api.views import hello

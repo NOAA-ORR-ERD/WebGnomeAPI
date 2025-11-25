@@ -28,7 +28,7 @@ from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 logging.basicConfig()
 
@@ -39,7 +39,7 @@ supported_ocean_models = {
     'WCOFS': 'ioos-forecast-agg',
     'NGOFS2_RGRID': 'ioos-forecast-agg',
     # 'CREOFS': 'coops-forecast-noagg',
-    'CREOFS_RGRID': 'ioos-forecast-agg',
+    # 'CREOFS_RGRID': 'ioos-forecast-agg',
     # 'LMHOFS': 'coops-forecast-noagg',
     'LMHOFS_RGRID': 'ioos-forecast-agg',
     'CIOFS': 'ioos-forecast-agg',
