@@ -3,8 +3,14 @@ Views for help documentation
 """
 from os import walk
 from os.path import sep, join, isfile, isdir
+
+from datetime import datetime, timezone
 import time
+
 import urllib.parse
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import ujson
 import redis
@@ -91,7 +97,16 @@ def create_help_feedback(request):
 
     json_request['ts'] = int(time.time())
 
-    # find redis using redis sessions config
+    # save_feedback_to_redis(request, json_request)
+    save_feedback_to_smtp(request, json_request)
+
+    return json_request
+
+
+def save_feedback_to_redis(request, json_request):
+    """
+    Deprecated in favor of e-mailing the feedback
+    """
     rhost = request.registry.settings.get('redis.sessions.host', 'localhost')
     rport = request.registry.settings.get('redis.sessions.port', 6379)
 
@@ -102,7 +117,54 @@ def create_help_feedback(request):
 
     client.set('feedback' + str(json_request['index']), str(json_request))
 
-    return json_request
+
+def save_feedback_to_smtp(request, json_request):
+    body = generate_email_body(json_request)
+
+    if 'index' in json_request:
+        subject = f'WebGnomeAPI feedback: {json_request['index']}'
+    else:
+        subject = 'WebGnomeAPI feedback'
+
+    settings = request.registry.settings
+    sender = settings.get('help.smtp.sender', 'developer@noaa.gov')
+    password = settings.get('help.smtp.password', 'no password')
+    recipients = settings.get(
+        'help.smtp.recipients',
+        'developer@noaa.gov'
+    ).split('\n')
+
+    msg = MIMEMultipart()
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = ', '.join(recipients)
+    msg.attach(body)
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
+        smtp_server.login(sender, password)
+        smtp_server.sendmail(sender, recipients, msg.as_string())
+
+
+def generate_email_body(json_request):
+    resp = ""
+
+    ts_datetime = datetime.fromtimestamp(json_request['ts'], tz=timezone.utc)
+    json_request['ts'] = f'{json_request['ts']} ({ts_datetime})'
+
+    for k in ['id', 'path', 'ts', 'index', 'helpful', 'response', 'html']:
+        v = json_request.get(k, 'None')
+        resp += f'<b>{k}</b>: {v}<br>'
+
+    return MIMEText(
+        f"""
+        <html>
+          <body>
+            {resp}
+          </body>
+        </html>
+        """,
+        'html'
+    )
 
 
 def get_help_dir_from_config(request):
