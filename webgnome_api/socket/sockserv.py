@@ -182,7 +182,7 @@ class WebgnomeNamespace(socketio.Namespace):
                         'server' not in logrecord.name):
                     try:
                         msg_obj = (pattern.match(formatter.format(logrecord))
-                                    .groupdict())
+                                   .groupdict())
                     except AttributeError:
                         self.emit('log', {'message': 'log message error'},)
                         return False

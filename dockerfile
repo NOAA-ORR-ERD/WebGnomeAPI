@@ -24,6 +24,7 @@ RUN cd libgoods && python -m pip install ./
 RUN  conda env export > webgnome_api/views/deployed_environment.yaml
 
 RUN python -m pip install ./
+RUN python location_files/compile_locations.py
 
 RUN mkdir /config
 RUN cp gnome-deploy/config/webgnomeapi/config.ini /config/config.ini
