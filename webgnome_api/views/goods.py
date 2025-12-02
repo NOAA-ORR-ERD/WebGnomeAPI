@@ -521,6 +521,7 @@ class GOODSRequest(object):
 
     def _thread_request_func(self, request_args, logger, mq):
         logger.info('START')
+        #STEP 1: Subset process to query libgoods for model subset
         self.subset_process = Process(target=subset_process_func,
                                       args=(request_args, mq),
                                       daemon=True)
@@ -568,6 +569,7 @@ class GOODSRequest(object):
             self.error(result)
             return
         if status:
+            #SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
             self._subset_xr = result 
@@ -586,6 +588,7 @@ class GOODSRequest(object):
             self.message = 'Cancelled'
             return
         self.state = 'requesting'
+        #STEP 2: use api.get_model_output to retrieve subset data to self.outpath
         self.request_process = Process(target=api.get_model_output,
                                        args=(self._subset_xr, self.outpath))
         self.request_process.start()
