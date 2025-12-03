@@ -10,6 +10,8 @@ import logging
 
 import urllib.parse
 import smtplib
+from smtplib import SMTPAuthenticationError
+
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -21,7 +23,9 @@ import redis
 from docutils.core import publish_parts
 
 from cornice import Service
-from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
+from pyramid.httpexceptions import (HTTPNotFound,
+                                    HTTPBadRequest,
+                                    HTTPUnauthorized)
 
 from webgnome_api.common.views import cors_exception, cors_policy
 from webgnome_api.common.indexing import iter_keywords
@@ -103,7 +107,12 @@ def create_help_feedback(request):
     json_request['ts'] = int(time.time())
 
     # save_feedback_to_redis(request, json_request)
-    save_feedback_to_smtp(request, json_request)
+
+    try:
+        save_feedback_to_smtp(request, json_request)
+    except SMTPAuthenticationError as e:
+        raise cors_exception(request, HTTPUnauthorized,
+                             explanation=f'{e}')
 
     return json_request
 
