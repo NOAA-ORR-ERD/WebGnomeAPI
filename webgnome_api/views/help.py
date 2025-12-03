@@ -6,11 +6,14 @@ from os.path import sep, join, isfile, isdir
 
 from datetime import datetime, timezone
 import time
+import logging
 
 import urllib.parse
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 import ujson
 import redis
@@ -22,6 +25,8 @@ from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from webgnome_api.common.views import cors_exception, cors_policy
 from webgnome_api.common.indexing import iter_keywords
+
+log = logging.getLogger(__name__)
 
 help_svc = Service(name='help', path='/help*dir',
                    description="Help Documentation and Feedback API",
@@ -120,6 +125,7 @@ def save_feedback_to_redis(request, json_request):
 
 def save_feedback_to_smtp(request, json_request):
     body = generate_email_body(json_request)
+    attachment = generate_email_attachment(json_request)
 
     if 'index' in json_request:
         subject = f'WebGnomeAPI feedback: {json_request['index']}'
@@ -139,6 +145,7 @@ def save_feedback_to_smtp(request, json_request):
     msg['From'] = sender
     msg['To'] = ', '.join(recipients)
     msg.attach(body)
+    msg.attach(attachment)
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
         smtp_server.login(sender, password)
@@ -146,25 +153,43 @@ def save_feedback_to_smtp(request, json_request):
 
 
 def generate_email_body(json_request):
-    resp = ""
+    resp = ''
 
     ts_datetime = datetime.fromtimestamp(json_request['ts'], tz=timezone.utc)
     json_request['ts'] = f'{json_request['ts']} ({ts_datetime})'
 
-    for k in ['id', 'path', 'ts', 'index', 'helpful', 'response', 'html']:
+    for k in ['id', 'path', 'ts', 'index', 'helpful', 'response']:
         v = json_request.get(k, 'None')
-        resp += f'<b>{k}</b>: {v}<br>'
+        resp += f'<b>{k}</b>: {v}<br>\n'
 
     return MIMEText(
-        f"""
-        <html>
-          <body>
-            {resp}
-          </body>
-        </html>
-        """,
+        '<html>\n'
+        '  <body>\n'
+        f'    {resp}\n'
+        '  <body>\n'
+        '<html>\n',
         'html'
     )
+
+
+def generate_email_attachment(json_request):
+    content = f"{json_request.get('html', 'None')}<br>"
+
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(
+        '<html>\n'
+        '  <body>\n'
+        f'    {content}\n'
+        '  <body>\n'
+        '<html>\n'
+    )
+
+    encoders.encode_base64(part)
+
+    part.add_header('Content-Disposition',
+                    'attachment; filename= help_form.html')
+
+    return part
 
 
 def get_help_dir_from_config(request):
