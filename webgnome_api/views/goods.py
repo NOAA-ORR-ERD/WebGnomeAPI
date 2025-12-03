@@ -283,9 +283,10 @@ def create_goods_request(request):
                                  'start': start,
                                  'end': end,
                                  'bounds': bounds,
-                                 'surface_only': surface_only,
+                                 #'surface_only': surface_only,
                                  'cross_dateline': cross_dateline,
                                  'environmental_parameters': request_type,
+                                 'libgoods_archive': libgoods.config.archive_dir,
                              },
                              tshift=tshift,
                              _debug=False)
@@ -507,6 +508,11 @@ class GOODSRequest(object):
         message_queue = multiprocessing.Queue()
         message_queue.write = message_queue.put
 
+        logger.info(f'Starting GOODS request {self.request_id}')
+        # if (not hasattr(libgoods.config, 'archive_dir') or
+        #         self.orig_request.config.local_archive_dir is not None):
+        #     raise EnvironmentError('libgoods archive directory not set (main thread)')
+        
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -515,6 +521,9 @@ class GOODSRequest(object):
         self.request_thread.start()
 
     def _thread_request_func(self, request_args, logger, mq):
+        if (not hasattr(libgoods.config, 'archive_dir') and
+                self.orig_request.config.local_archive_dir is not None):
+            raise EnvironmentError('libgoods archive directory not set (worker thread)')
         logger.info('START')
         self.subset_process = Process(target=subset_process_func,
                                       args=(request_args, mq),
@@ -528,7 +537,7 @@ class GOODSRequest(object):
         counter = 0
         timeout = 180
         while counter < timeout:  # 3 minutes until loop times out
-            logger.info('SUBSET PROGESS: ' + msg)
+            logger.info('SUBSET PROGESS: ' + str(counter))
             try:
                 msg = mq.get(timeout=2)
             except queue.Empty:
@@ -539,7 +548,10 @@ class GOODSRequest(object):
                 logger.info('Message: {0}'.format(msg))
                 break
             else:
-                msg = str(counter)
+                while not mq.empty():
+                    msg = mq.get()
+                    if msg:
+                        logger.info('Message: {0}'.format(msg))
                 self.time_elapsed = counter
         status = msg
         logger.info('Joining subset process')
@@ -720,6 +732,19 @@ class Tracker(Callback):
 
 def subset_process_func(request_args, mq):
     mq.put('startup')  # startup sync message
+    
+    if request_args.get('libgoods_archive', None):
+        mq.put('libgoods archive reqested')
+    if (not hasattr(libgoods.config, 'archive_dir') and
+            libgoods.config.archive_dir is None or
+            request_args.get('libgoods_archive', None)):
+        mq.put('libgoods archive not set')
+        if request_args.get('libgoods_archive', None):
+            libgoods.config.archive_dir = request_args['libgoods_archive']
+            mq.put('set libgoods archive dir to '
+                   f'{request_args["libgoods_archive"]}')
+        request_args.pop('libgoods_archive', None)
+        
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
