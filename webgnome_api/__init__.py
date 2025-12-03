@@ -108,15 +108,6 @@ def reconcile_directory_settings(settings):
         raise EnvironmentError('Location files folder path {0} '
                                'is not a directory!!'.format(locations_dir))
 
-    archive_dir = settings['local_archive_dir']
-    try:
-        import libgoods
-        if os.path.isdir(archive_dir):
-            libgoods.config.archive_dir = archive_dir
-    except ImportError:
-        print("libgoods package not available "
-          "-- its functionality will not be there")
-
 def load_cors_origins(settings, key):
     if key in settings:
         origins = settings[key].split('\n')
@@ -240,6 +231,15 @@ def main(global_config, **settings):
         # it is ok if the folder already exists.
         if e.errno != 17:
             raise
+
+    archive_dir = settings['local_archive_dir']
+    try:
+        import libgoods
+        if os.path.isdir(archive_dir):
+            libgoods.config.archive_dir = archive_dir
+    except ImportError:
+        print("libgoods package not available "
+          "-- its functionality will not be there")
 
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
