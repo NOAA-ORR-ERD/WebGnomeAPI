@@ -234,7 +234,6 @@ def create_goods_request(request):
         bbox: Tuple[float, float, float, float]
         source: str
         standard_names: List[str] = field(default_factory=lambda: STANDARD_NAMES)
-        surface_only: bool = False
     '''
 
     log_prefix = 'req{0}: get_currents()'.format(id(request))
@@ -245,9 +244,7 @@ def create_goods_request(request):
     _max_upload_size = eval(request.registry.settings['max_upload_size'])
     bounds = (float(params['WestLon']), float(params['SouthLat']),
               float(params['EastLon']), float(params['NorthLat']))
-    surface_only = params.get('surface_only', True) not in ('false',
-                                                            'False',
-                                                            None)
+
 
     cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
@@ -283,7 +280,6 @@ def create_goods_request(request):
                                  'start': start,
                                  'end': end,
                                  'bounds': bounds,
-                                 #'surface_only': surface_only,
                                  'cross_dateline': cross_dateline,
                                  'environmental_parameters': request_type,
                                  'libgoods_archive': libgoods.config.archive_dir,
@@ -512,7 +508,7 @@ class GOODSRequest(object):
         # if (not hasattr(libgoods.config, 'archive_dir') or
         #         self.orig_request.config.local_archive_dir is not None):
         #     raise EnvironmentError('libgoods archive directory not set (main thread)')
-        
+
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -732,7 +728,7 @@ class Tracker(Callback):
 
 def subset_process_func(request_args, mq):
     mq.put('startup')  # startup sync message
-    
+
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested')
     if (not hasattr(libgoods.config, 'archive_dir') and
@@ -744,7 +740,7 @@ def subset_process_func(request_args, mq):
             mq.put('set libgoods archive dir to '
                    f'{request_args["libgoods_archive"]}')
         request_args.pop('libgoods_archive', None)
-        
+
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
