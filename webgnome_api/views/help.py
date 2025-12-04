@@ -137,7 +137,7 @@ def save_feedback_to_smtp(request, json_request):
     attachment = generate_email_attachment(json_request)
 
     if 'index' in json_request:
-        subject = f'WebGnomeAPI feedback: {json_request['index']}'
+        subject = f"WebGnomeAPI feedback: {json_request['index']}"
     else:
         subject = 'WebGnomeAPI feedback'
 
@@ -165,7 +165,7 @@ def generate_email_body(json_request):
     resp = ''
 
     ts_datetime = datetime.fromtimestamp(json_request['ts'], tz=timezone.utc)
-    json_request['ts'] = f'{json_request['ts']} ({ts_datetime})'
+    json_request['ts'] = f"{json_request['ts']} ({ts_datetime})"
 
     for k in ['id', 'path', 'ts', 'index', 'helpful', 'response']:
         v = json_request.get(k, 'None')
