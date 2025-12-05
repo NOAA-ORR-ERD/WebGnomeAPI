@@ -231,8 +231,11 @@ def main(global_config, **settings):
         # it is ok if the folder already exists.
         if e.errno != 17:
             raise
+    try:
+        archive_dir = settings['local_archive_dir']
+    except KeyError:
+        archive_dir = None
 
-    archive_dir = settings['local_archive_dir']
     try:
         import libgoods
         if os.path.isdir(archive_dir):
