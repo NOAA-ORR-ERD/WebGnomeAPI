@@ -108,22 +108,24 @@ def get_model_metadata(request):
 def validate_subset(request):
     '''
 
-    map_bounds is a polygon as a list of lon, lat pairs
+    subset_bounds is a polygon as a list of lon, lat pairs
     '''
     params = request.GET
-    bounds = (float(params['WestLon']),
-              float(params['SouthLat']),
-              float(params['EastLon']),
-              float(params['NorthLat']))
-    start = request.GET.get('start_time',None)
-    end = request.GET.get('end_time',None)
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
+
+    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
+    start = request.GET.get('start_time', None)
+    end = request.GET.get('end_time', None)
     model_id = request.GET.get('model_id', None)
     try:
         retval = api.validate_subset(
             model_id,
             start,
             end,
-            bounds,
+            subset_bounds,
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
@@ -155,12 +157,17 @@ def get_goods_map(request):
     params = request.POST
 
     max_upload_size = eval(request.registry.settings['max_upload_size'])
-    bounds = (float(params['WestLon']), float(params['SouthLat']),
-              float(params['EastLon']), float(params['NorthLat']))
+
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
+
+    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
 
     try:
         fn, contents = api.get_map(
-            bounds=bounds,
+            bounds=subset_bounds,
             resolution=params['resolution'],
             data_source=params['shoreline'],
             cross_dateline=bool(int(params['xDateline'])),
@@ -242,8 +249,13 @@ def create_goods_request(request):
     params = request.POST
     upload_dir = os.path.relpath(get_session_dir(request))
     _max_upload_size = eval(request.registry.settings['max_upload_size'])
-    bounds = (float(params['WestLon']), float(params['SouthLat']),
-              float(params['EastLon']), float(params['NorthLat']))
+
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
+
+    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
 
 
     cross_dateline = bool(int(params['cross_dateline']))
@@ -279,7 +291,7 @@ def create_goods_request(request):
                                  'model_id': params['model_id'],
                                  'start': start,
                                  'end': end,
-                                 'bounds': bounds,
+                                 'bounds': subset_bounds,
                                  'cross_dateline': cross_dateline,
                                  'environmental_parameters': request_type,
                                  'libgoods_archive': libgoods.config.archive_dir,
