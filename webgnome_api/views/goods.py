@@ -219,7 +219,8 @@ def get_nws_wind(request):
     '''
     params = request.GET
     try:
-        data = api.NWS_point_wind(lon=params['longitude'],lat=params['latitude'])
+        data = api.NWS_point_wind(lon=params['longitude'],
+                                  lat=params['latitude'])
     except ValueError as e:
         return cors_response(request, HTTPNotFound(e))
 
@@ -623,7 +624,8 @@ class GOODSRequest(object):
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
-        register_exportable_file(self.orig_request, self.filename, self.outpath)
+        register_exportable_file(self.orig_request, self.filename,
+                                 self.outpath)
         self.complete_event.set()
         # logger.close()
 
