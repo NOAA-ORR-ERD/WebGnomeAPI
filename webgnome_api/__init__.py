@@ -24,7 +24,6 @@ from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
                                           WebgnomeNamespace,
                                           GoodsFileNamespace)
 
-from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
@@ -50,6 +49,7 @@ supported_ocean_models = ['ESPC',
                           ]
 
 supported_met_models = ['GFS_1_4DEG', 'GFS_1_2DEG']
+
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -107,6 +107,7 @@ def reconcile_directory_settings(settings):
     if not os.path.isdir(locations_dir):
         raise EnvironmentError('Location files folder path {0} '
                                'is not a directory!!'.format(locations_dir))
+
 
 def load_cors_origins(settings, key):
     if key in settings:
@@ -242,7 +243,7 @@ def main(global_config, **settings):
             libgoods.config.archive_dir = archive_dir
     except ImportError:
         print("libgoods package not available "
-          "-- its functionality will not be there")
+              "-- its functionality will not be there")
 
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
