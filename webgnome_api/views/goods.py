@@ -93,8 +93,8 @@ def get_model_metadata(request):
         bounds = ujson.loads(bounds)
 
     if model_id:
-        mdl = api.get_model_info(model_id)
-        return mdl
+        mdl = api.get_model(model_id)
+        return mdl.metadata
     else:
         retval = api.list_models(
             model_ids=supported_env_models,
@@ -108,17 +108,13 @@ def get_model_metadata(request):
 def validate_subset(request):
     '''
 
-    map_bounds is a polygon as a list of lon, lat pairs
+    subset_bounds is a polygon as a list of lon, lat pairs
     '''
     params = request.GET
-    bounds = (float(params['WestLon']),
-              float(params['SouthLat']),
-              float(params['EastLon']),
-              float(params['NorthLat']))
-    start = request.GET.get('start_time',None)
-    end = request.GET.get('end_time',None)
-    model_id = request.GET.get('model_id', None)
-    source = request.GET.get('source', None)
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
 
     subset_bounds = ((w,s), (w,n), (e,n), (e,s))
     start = request.GET.get('start_time', None)
@@ -519,6 +515,11 @@ class GOODSRequest(object):
 
         message_queue = multiprocessing.Queue()
         message_queue.write = message_queue.put
+
+        logger.info(f'Starting GOODS request {self.request_id}')
+        # if (not hasattr(libgoods.config, 'archive_dir') or
+        #         self.orig_request.config.local_archive_dir is not None):
+        #     raise EnvironmentError('libgoods archive directory not set (main thread)')
 
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
