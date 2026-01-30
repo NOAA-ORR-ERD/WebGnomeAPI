@@ -541,6 +541,7 @@ class GOODSRequest(object):
             raise EnvironmentError('libgoods archive directory not set '
                                    '(worker thread)')
         logger.info('START')
+        #STEP 1: Subset process to query libgoods for model subset
         self.subset_process = Process(target=subset_process_func,
                                       args=(request_args, mq),
                                       daemon=True)
@@ -591,6 +592,7 @@ class GOODSRequest(object):
             self.error(result)
             return
         if status:
+            #SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
             self._subset_xr = result
@@ -609,6 +611,7 @@ class GOODSRequest(object):
             self.message = 'Cancelled'
             return
         self.state = 'requesting'
+        #STEP 2: use api.get_model_output to retrieve subset data to self.outpath
         self.request_process = Process(target=api.get_model_output,
                                        args=(self._subset_xr, self.outpath))
         self.request_process.start()
@@ -752,15 +755,19 @@ def subset_process_func(request_args, mq):
 
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested')
-    if (not hasattr(libgoods.config, 'archive_dir') and
-            libgoods.config.archive_dir is None or
-            request_args.get('libgoods_archive', None)):
-        mq.put('libgoods archive not set')
+        
+    # if libgoods.config.archive_dir does not exist, but a libgoods_archive is provided, use that
+    if (not hasattr(libgoods.config, 'archive_dir')):
         if request_args.get('libgoods_archive', None):
-            libgoods.config.archive_dir = request_args['libgoods_archive']
+            libgoods.config.archive_dir = request_args.get('libgoods_archive')
             mq.put('set libgoods archive dir to '
                    f'{request_args["libgoods_archive"]}')
-        request_args.pop('libgoods_archive', None)
+            request_args.pop('libgoods_archive', None)
+        else:
+            mq.put('config.libgoods_archive not set')
+    
+    #pop libgoods_archive from request_args since it's not a valid arg for get_model_subset
+    request_args.pop('libgoods_archive', None)
 
     try:
         # raise ValueError('test error')
