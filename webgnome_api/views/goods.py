@@ -5,7 +5,6 @@ import os
 import time
 import datetime
 import logging
-import pickle
 import threading
 import multiprocessing
 from multiprocessing import Process
@@ -21,7 +20,7 @@ from pyramid.httpexceptions import (HTTPInsufficientStorage,
                                     HTTPNotFound)
 
 from webgnome_api.common.system_resources import get_free_space
-from webgnome_api.common.common_object import (get_session_dir,)
+from webgnome_api.common.common_object import get_session_dir
 from webgnome_api.common.session_management import (get_session_objects,
                                                     register_exportable_file)
 from webgnome_api.common.views import (cors_policy,
@@ -33,6 +32,7 @@ from webgnome_api import supported_ocean_models, supported_met_models
 
 try:
     from libgoods import api, FileTooBigError
+    import libgoods
 except ImportError:
     print("libgoods package not available "
           "-- its functionality will not be there")
@@ -45,13 +45,14 @@ log = logging.getLogger(__name__)
 
 goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
-                     
+
 goods_nws_wind = Service(name='nws', path='/goods/nws*',
-                     description="GOODS NWS Point Wind API", cors_policy=cors_policy)
+                         description="GOODS NWS Point Wind API",
+                         cors_policy=cors_policy)
 
 goods_validation = Service(name='validation', path='/goods/validation*',
-                         description="GOODS SUBSET VALIDATION API",
-                         cors_policy=cors_policy)
+                           description="GOODS SUBSET VALIDATION API",
+                           cors_policy=cors_policy)
 
 goods_list_models = Service(name='list_models', path='/goods/list_models*',
                             description="GOODS METADATA API",
@@ -72,9 +73,9 @@ def get_model_metadata(request):
 
     map_bounds is a polygon as a list of lon, lat pairs
     '''
+
     bounds = request.GET.get('map_bounds', None)
     model_id = request.GET.get('model_id', None)
-    model_source = request.GET.get('model_source', None)
     request_type = request.GET.get('request_type')
     try:
         if any(cur in request_type for cur in ('surface currents',
@@ -85,52 +86,51 @@ def get_model_metadata(request):
         else:
             supported_env_models = {}
     except TypeError:
-        supported_env_models = {**supported_ocean_models,
-                                **supported_met_models}
+        supported_env_models = [supported_ocean_models + supported_met_models]
     retval = None
-    # model_list = list(supported_env_models.keys())
+
     if bounds:
         bounds = ujson.loads(bounds)
+
     if model_id:
-        mdl = api.get_model_info(model_id, model_source)
-        return mdl
+        mdl = api.get_model(model_id)
+        return mdl.metadata
     else:
         retval = api.list_models(
-            model_ids_sources=supported_env_models,
+            model_ids=supported_env_models,
             map_bounds=bounds,
             env_params=ujson.loads(request_type),
-            as_pyson=True,
             )
+
     return retval
-    
+
+
 @goods_validation.get()
 def validate_subset(request):
     '''
-   
-    map_bounds is a polygon as a list of lon, lat pairs
+
+    subset_bounds is a polygon as a list of lon, lat pairs
     '''
     params = request.GET
-    bounds = (float(params['WestLon']),
-              float(params['SouthLat']),
-              float(params['EastLon']), 
-              float(params['NorthLat']))
-    start = request.GET.get('start_time',None)
-    end = request.GET.get('end_time',None)
-    model_id = request.GET.get('model_id', None)
-    source = request.GET.get('source', None)
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
 
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
+    start = request.GET.get('start_time', None)
+    end = request.GET.get('end_time', None)
+    model_id = request.GET.get('model_id', None)
     try:
         retval = api.validate_subset(
             model_id,
-            source,
             start,
             end,
-            bounds
+            subset_bounds,
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
-        
-        
+
     return retval
 
 
@@ -157,12 +157,17 @@ def get_goods_map(request):
     params = request.POST
 
     max_upload_size = eval(request.registry.settings['max_upload_size'])
-    bounds = (float(params['WestLon']), float(params['SouthLat']),
-              float(params['EastLon']), float(params['NorthLat']))
+
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
+
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
 
     try:
         fn, contents = api.get_map(
-            bounds=bounds,
+            bounds=subset_bounds,
             resolution=params['resolution'],
             data_source=params['shoreline'],
             cross_dateline=bool(int(params['xDateline'])),
@@ -196,7 +201,8 @@ def get_goods_map(request):
     log.info('Successfully uploaded file "{0}"'.format(file_path))
 
     return file_path, file_name
-    
+
+
 @goods_nws_wind.get()
 def get_nws_wind(request):
     '''
@@ -213,10 +219,11 @@ def get_nws_wind(request):
     '''
     params = request.GET
     try:
-        data = api.NWS_point_wind(lon=params['longitude'],lat=params['latitude'])
+        data = api.NWS_point_wind(lon=params['longitude'],
+                                  lat=params['latitude'])
     except ValueError as e:
         return cors_response(request, HTTPNotFound(e))
-                       
+
     return data
 
 
@@ -236,7 +243,6 @@ def create_goods_request(request):
         bbox: Tuple[float, float, float, float]
         source: str
         standard_names: List[str] = field(default_factory=lambda: STANDARD_NAMES)
-        surface_only: bool = False
     '''
 
     log_prefix = 'req{0}: get_currents()'.format(id(request))
@@ -245,15 +251,17 @@ def create_goods_request(request):
     params = request.POST
     upload_dir = os.path.relpath(get_session_dir(request))
     _max_upload_size = eval(request.registry.settings['max_upload_size'])
-    bounds = (float(params['WestLon']), float(params['SouthLat']),
-              float(params['EastLon']), float(params['NorthLat']))
-    surface_only = params.get('surface_only', True) not in ('false',
-                                                            'False',
-                                                            None)
+
+    w = float(params['WestLon'])
+    s = float(params['SouthLat'])
+    e = float(params['EastLon'])
+    n = float(params['NorthLat'])
+
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
 
     cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
-    tshift = 0 #eliminating this but not done entirely yet (mover.py)
+    tshift = 0  # eliminating this but not done entirely yet (mover.py)
 
     include_winds = params.get('include_winds', True) not in ('false',
                                                               'False',
@@ -272,28 +280,27 @@ def create_goods_request(request):
     _file_name, unique_name = gen_unique_filename(fname, upload_dir)
     output_path = os.path.join(upload_dir, unique_name)
 
-    source = params.get('source')
-
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
-    goods_req = GOODSRequest(start_time=datetime.datetime.now(),
-                             orig_request=request,
-                             request_id=request_id,
-                             filename=unique_name,
-                             outpath=output_path,
-                             request_type=request_type,
-                             request_args={
-                                 'model_id': params['model_id'],
-                                 'model_source': source,
-                                 'start': start,
-                                 'end': end,
-                                 'bounds': bounds,
-                                 'surface_only': surface_only,
-                                 'cross_dateline': cross_dateline,
-                                 'environmental_parameters': request_type,
-                             },
-                             tshift=tshift,
-                             _debug=False)
+    goods_req = GOODSRequest(
+        start_time=datetime.datetime.now(),
+        orig_request=request,
+        request_id=request_id,
+        filename=unique_name,
+        outpath=output_path,
+        request_type=request_type,
+        request_args={
+            'model_id': params['model_id'],
+            'start': start,
+            'end': end,
+            'bounds': subset_bounds,
+            'cross_dateline': cross_dateline,
+            'environmental_parameters': request_type,
+            'libgoods_archive': libgoods.config.archive_dir,
+        },
+        tshift=tshift,
+        _debug=False
+    )
 
     session_objs[request_id] = goods_req
     goods_req.start()
@@ -330,7 +337,7 @@ def goods_request(request):
     elif command == 'cancel':
         req_obj.cancel_request()
         return req_obj.to_response()
-    
+
     elif command == 'retry':
         req_obj.retry_request()
         return req_obj.to_response()
@@ -419,6 +426,7 @@ class GOODSRequest(object):
     'subsetting' state after calling the relevant method.
     '''
     logger = multiprocessing.log_to_stderr()
+
     def __init__(self,
                  request_id=None,
                  orig_request=None,
@@ -446,13 +454,16 @@ class GOODSRequest(object):
         self.filename = filename
         self.outpath = outpath
         self.tshift = tshift
-        #self.tshift = float(tshift) if tshift != 'NaN' else None #timezone shift retained for future use by webgnomeapi
+
+        # timezone shift retained for future use by webgnomeapi
+        # self.tshift = float(tshift) if tshift != 'NaN' else None
+
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
         self.logger = self.__class__.logger
-        
-        #Communication attributes (should be reset if request retried)
+
+        # Communication attributes (should be reset if request retried)
         self.message = None  # set by worker thread
         self.state = 'preparing'
         self.time_elapsed = 0
@@ -460,7 +471,7 @@ class GOODSRequest(object):
         # Process objects for subset and request operations
         self.subset_process = None
         self.request_process = None
-        
+
         # lock for main thread to clear on reconfirmation
         self.pause_event = threading.Event()
 
@@ -496,7 +507,6 @@ class GOODSRequest(object):
             raise ValueError('Subset operation not completed')
         else:
             self._subset_xr = subs
-        
 
     def start(self):
         logger = self.logger
@@ -511,7 +521,13 @@ class GOODSRequest(object):
 
         message_queue = multiprocessing.Queue()
         message_queue.write = message_queue.put
-        
+
+        logger.info(f'Starting GOODS request {self.request_id}')
+        # if (not hasattr(libgoods.config, 'archive_dir') or
+        #         self.orig_request.config.local_archive_dir is not None):
+        #     raise EnvironmentError('libgoods archive directory not set '
+        #                            '(main thread)')
+
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -520,6 +536,10 @@ class GOODSRequest(object):
         self.request_thread.start()
 
     def _thread_request_func(self, request_args, logger, mq):
+        if (not hasattr(libgoods.config, 'archive_dir') and
+                self.orig_request.config.local_archive_dir is not None):
+            raise EnvironmentError('libgoods archive directory not set '
+                                   '(worker thread)')
         logger.info('START')
         #STEP 1: Subset process to query libgoods for model subset
         self.subset_process = Process(target=subset_process_func,
@@ -534,7 +554,7 @@ class GOODSRequest(object):
         counter = 0
         timeout = 180
         while counter < timeout:  # 3 minutes until loop times out
-            logger.info('SUBSET PROGESS: ' + msg)
+            logger.info('SUBSET PROGESS: ' + str(counter))
             try:
                 msg = mq.get(timeout=2)
             except queue.Empty:
@@ -545,7 +565,10 @@ class GOODSRequest(object):
                 logger.info('Message: {0}'.format(msg))
                 break
             else:
-                msg = str(counter)
+                while not mq.empty():
+                    msg = mq.get()
+                    if msg:
+                        logger.info('Message: {0}'.format(msg))
                 self.time_elapsed = counter
         status = msg
         logger.info('Joining subset process')
@@ -572,7 +595,7 @@ class GOODSRequest(object):
             #SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
-            self._subset_xr = result 
+            self._subset_xr = result
             logger.info(str(self._subset_xr))
         else:
             self.message = status
@@ -580,7 +603,7 @@ class GOODSRequest(object):
 
         self._subset_finished = True
         self.percent = 0
-        self.subset_size = self._subset_xr.nbytes
+        self.subset_size = self._subset_xr.ds.nbytes
         if self.subset_size > self._max_size:
             self.too_large()
 
@@ -604,9 +627,10 @@ class GOODSRequest(object):
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
-        register_exportable_file(self.orig_request, self.filename, self.outpath)
+        register_exportable_file(self.orig_request, self.filename,
+                                 self.outpath)
         self.complete_event.set()
-        #logger.close()
+        # logger.close()
 
     def too_large(self):
         size = self._subset_xr.nbytes
@@ -621,7 +645,7 @@ class GOODSRequest(object):
     def error(self, msg):
         self.state = 'error'
         self.message = msg
-    
+
     def reset(self):
         self.state = 'preparing'
         self.message = None
@@ -666,7 +690,7 @@ class GOODSRequest(object):
             except Exception as e:
                 self.logger.error('Request thread join error: ' + repr(e))
                 raise
-    
+
     def retry_request(self):
         self.reset()
         self.start()
@@ -728,6 +752,19 @@ class Tracker(Callback):
 
 def subset_process_func(request_args, mq):
     mq.put('startup')  # startup sync message
+
+    if request_args.get('libgoods_archive', None):
+        mq.put('libgoods archive reqested')
+    if (not hasattr(libgoods.config, 'archive_dir') and
+            libgoods.config.archive_dir is None or
+            request_args.get('libgoods_archive', None)):
+        mq.put('libgoods archive not set')
+        if request_args.get('libgoods_archive', None):
+            libgoods.config.archive_dir = request_args['libgoods_archive']
+            mq.put('set libgoods archive dir to '
+                   f'{request_args["libgoods_archive"]}')
+        request_args.pop('libgoods_archive', None)
+
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
