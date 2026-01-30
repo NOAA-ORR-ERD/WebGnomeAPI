@@ -755,15 +755,19 @@ def subset_process_func(request_args, mq):
 
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested')
-    if (not hasattr(libgoods.config, 'archive_dir') and
-            libgoods.config.archive_dir is None or
-            request_args.get('libgoods_archive', None)):
-        mq.put('libgoods archive not set')
+        
+    # if libgoods.config.archive_dir does not exist, but a libgoods_archive is provided, use that
+    if (not hasattr(libgoods.config, 'archive_dir')):
         if request_args.get('libgoods_archive', None):
-            libgoods.config.archive_dir = request_args['libgoods_archive']
+            libgoods.config.archive_dir = request_args.get('libgoods_archive')
             mq.put('set libgoods archive dir to '
                    f'{request_args["libgoods_archive"]}')
-        request_args.pop('libgoods_archive', None)
+            request_args.pop('libgoods_archive', None)
+        else:
+            mq.put('config.libgoods_archive not set')
+    
+    #pop libgoods_archive from request_args since it's not a valid arg for get_model_subset
+    request_args.pop('libgoods_archive', None)
 
     try:
         # raise ValueError('test error')
