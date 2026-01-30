@@ -49,7 +49,7 @@ supported_ocean_models = ['ESPC',
                           'TAMU',
                           ]
 
-supported_met_models = ['GFS_1_4DEG', 'GFS_1_2DEG']
+supported_met_models = ['GFS']
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
