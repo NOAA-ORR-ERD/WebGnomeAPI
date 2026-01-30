@@ -5,7 +5,6 @@ import os
 import time
 import datetime
 import logging
-import pickle
 import threading
 import multiprocessing
 from multiprocessing import Process
@@ -48,11 +47,12 @@ goods_maps = Service(name='maps', path='/goods/maps*',
                      description="GOODS MAP API", cors_policy=cors_policy)
 
 goods_nws_wind = Service(name='nws', path='/goods/nws*',
-                     description="GOODS NWS Point Wind API", cors_policy=cors_policy)
+                         description="GOODS NWS Point Wind API",
+                         cors_policy=cors_policy)
 
 goods_validation = Service(name='validation', path='/goods/validation*',
-                         description="GOODS SUBSET VALIDATION API",
-                         cors_policy=cors_policy)
+                           description="GOODS SUBSET VALIDATION API",
+                           cors_policy=cors_policy)
 
 goods_list_models = Service(name='list_models', path='/goods/list_models*',
                             description="GOODS METADATA API",
@@ -104,6 +104,7 @@ def get_model_metadata(request):
 
     return retval
 
+
 @goods_validation.get()
 def validate_subset(request):
     '''
@@ -116,7 +117,7 @@ def validate_subset(request):
     e = float(params['EastLon'])
     n = float(params['NorthLat'])
 
-    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
     start = request.GET.get('start_time', None)
     end = request.GET.get('end_time', None)
     model_id = request.GET.get('model_id', None)
@@ -129,7 +130,6 @@ def validate_subset(request):
             )
     except Exception as e:
         return cors_response(request, HTTPPythonError(e))
-
 
     return retval
 
@@ -163,7 +163,7 @@ def get_goods_map(request):
     e = float(params['EastLon'])
     n = float(params['NorthLat'])
 
-    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
 
     try:
         fn, contents = api.get_map(
@@ -202,6 +202,7 @@ def get_goods_map(request):
 
     return file_path, file_name
 
+
 @goods_nws_wind.get()
 def get_nws_wind(request):
     '''
@@ -218,7 +219,8 @@ def get_nws_wind(request):
     '''
     params = request.GET
     try:
-        data = api.NWS_point_wind(lon=params['longitude'],lat=params['latitude'])
+        data = api.NWS_point_wind(lon=params['longitude'],
+                                  lat=params['latitude'])
     except ValueError as e:
         return cors_response(request, HTTPNotFound(e))
 
@@ -255,12 +257,11 @@ def create_goods_request(request):
     e = float(params['EastLon'])
     n = float(params['NorthLat'])
 
-    subset_bounds = ((w,s), (w,n), (e,n), (e,s))
-
+    subset_bounds = ((w, s), (w, n), (e, n), (e, s))
 
     cross_dateline = bool(int(params['cross_dateline']))
     request_type = params['request_type']
-    tshift = 0 #eliminating this but not done entirely yet (mover.py)
+    tshift = 0  # eliminating this but not done entirely yet (mover.py)
 
     include_winds = params.get('include_winds', True) not in ('false',
                                                               'False',
@@ -281,23 +282,25 @@ def create_goods_request(request):
 
     session_objs = get_session_objects(request)
     request_id = str(uuid1())
-    goods_req = GOODSRequest(start_time=datetime.datetime.now(),
-                             orig_request=request,
-                             request_id=request_id,
-                             filename=unique_name,
-                             outpath=output_path,
-                             request_type=request_type,
-                             request_args={
-                                 'model_id': params['model_id'],
-                                 'start': start,
-                                 'end': end,
-                                 'bounds': subset_bounds,
-                                 'cross_dateline': cross_dateline,
-                                 'environmental_parameters': request_type,
-                                 'libgoods_archive': libgoods.config.archive_dir,
-                             },
-                             tshift=tshift,
-                             _debug=False)
+    goods_req = GOODSRequest(
+        start_time=datetime.datetime.now(),
+        orig_request=request,
+        request_id=request_id,
+        filename=unique_name,
+        outpath=output_path,
+        request_type=request_type,
+        request_args={
+            'model_id': params['model_id'],
+            'start': start,
+            'end': end,
+            'bounds': subset_bounds,
+            'cross_dateline': cross_dateline,
+            'environmental_parameters': request_type,
+            'libgoods_archive': libgoods.config.archive_dir,
+        },
+        tshift=tshift,
+        _debug=False
+    )
 
     session_objs[request_id] = goods_req
     goods_req.start()
@@ -423,6 +426,7 @@ class GOODSRequest(object):
     'subsetting' state after calling the relevant method.
     '''
     logger = multiprocessing.log_to_stderr()
+
     def __init__(self,
                  request_id=None,
                  orig_request=None,
@@ -450,13 +454,16 @@ class GOODSRequest(object):
         self.filename = filename
         self.outpath = outpath
         self.tshift = tshift
-        #self.tshift = float(tshift) if tshift != 'NaN' else None #timezone shift retained for future use by webgnomeapi
+
+        # timezone shift retained for future use by webgnomeapi
+        # self.tshift = float(tshift) if tshift != 'NaN' else None
+
         self._debug = _debug
         self._max_size = _max_size
         self._reconfirm_timeout = _reconfirm_timeout
         self.logger = self.__class__.logger
 
-        #Communication attributes (should be reset if request retried)
+        # Communication attributes (should be reset if request retried)
         self.message = None  # set by worker thread
         self.state = 'preparing'
         self.time_elapsed = 0
@@ -501,7 +508,6 @@ class GOODSRequest(object):
         else:
             self._subset_xr = subs
 
-
     def start(self):
         logger = self.logger
         logger.setLevel(multiprocessing.SUBDEBUG)
@@ -519,7 +525,8 @@ class GOODSRequest(object):
         logger.info(f'Starting GOODS request {self.request_id}')
         # if (not hasattr(libgoods.config, 'archive_dir') or
         #         self.orig_request.config.local_archive_dir is not None):
-        #     raise EnvironmentError('libgoods archive directory not set (main thread)')
+        #     raise EnvironmentError('libgoods archive directory not set '
+        #                            '(main thread)')
 
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
@@ -531,7 +538,8 @@ class GOODSRequest(object):
     def _thread_request_func(self, request_args, logger, mq):
         if (not hasattr(libgoods.config, 'archive_dir') and
                 self.orig_request.config.local_archive_dir is not None):
-            raise EnvironmentError('libgoods archive directory not set (worker thread)')
+            raise EnvironmentError('libgoods archive directory not set '
+                                   '(worker thread)')
         logger.info('START')
         self.subset_process = Process(target=subset_process_func,
                                       args=(request_args, mq),
@@ -616,9 +624,10 @@ class GOODSRequest(object):
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
-        register_exportable_file(self.orig_request, self.filename, self.outpath)
+        register_exportable_file(self.orig_request, self.filename,
+                                 self.outpath)
         self.complete_event.set()
-        #logger.close()
+        # logger.close()
 
     def too_large(self):
         size = self._subset_xr.nbytes
