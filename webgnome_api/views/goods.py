@@ -557,19 +557,21 @@ class GOODSRequest(object):
             logger.info('SUBSET PROGESS: ' + str(counter))
             try:
                 msg = mq.get(timeout=2)
-            except queue.Empty:
-                pass
-            counter += 2
-            if msg == 'success' or msg == 'error':
-                logger.info('leaving progress loop via break')
-                logger.info('Message: {0}'.format(msg))
-                break
-            else:
-                while not mq.empty():
-                    msg = mq.get()
+                counter += 2
+                if msg == 'success' or msg == 'error':
+                    logger.info('leaving progress loop via break')
+                    logger.info('Message: {0}'.format(msg))
+                    break
+                else:
                     if msg:
                         logger.info('Message: {0}'.format(msg))
-                self.time_elapsed = counter
+                    while not mq.empty():
+                        msg = mq.get()
+                        if msg:
+                            logger.info('Message: {0}'.format(msg))
+                    self.time_elapsed = counter
+            except queue.Empty:
+                pass
         status = msg
         logger.info('Joining subset process')
         result = mq.get(timeout=60)
