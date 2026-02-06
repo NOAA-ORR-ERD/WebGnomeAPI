@@ -756,14 +756,14 @@ def subset_process_func(request_args, mq):
     mq.put('startup')  # startup sync message
 
     if request_args.get('libgoods_archive', None):
-        mq.put('libgoods archive reqested')
+        mq.put('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
         
     # if libgoods.config.archive_dir does not exist, but a libgoods_archive is provided, use that
     if (not hasattr(libgoods.config, 'archive_dir')):
         if request_args.get('libgoods_archive', None):
             libgoods.config.archive_dir = request_args.get('libgoods_archive')
             mq.put('set libgoods archive dir to '
-                   f'{request_args["libgoods_archive"]}')
+                   f'{request_args.get('libgoods_archive').__str__()}')
             request_args.pop('libgoods_archive', None)
         else:
             mq.put('config.libgoods_archive not set')
