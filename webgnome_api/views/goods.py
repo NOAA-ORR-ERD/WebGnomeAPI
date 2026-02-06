@@ -762,8 +762,8 @@ def subset_process_func(request_args, mq):
     if (not hasattr(libgoods.config, 'archive_dir')):
         if request_args.get('libgoods_archive', None):
             libgoods.config.archive_dir = request_args.get('libgoods_archive')
-            mq.put('set libgoods archive dir to '
-                   f'{request_args.get('libgoods_archive').__str__()}')
+            mq.put('set libgoods archive dir to: ' +
+                   request_args.get('libgoods_archive').__str__())
             request_args.pop('libgoods_archive', None)
         else:
             mq.put('config.libgoods_archive not set')
