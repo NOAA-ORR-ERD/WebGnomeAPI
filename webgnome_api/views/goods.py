@@ -767,6 +767,8 @@ def subset_process_func(request_args, mq):
             request_args.pop('libgoods_archive', None)
         else:
             mq.put('config.libgoods_archive not set')
+    else:
+        mq.put('libgoods.config.archive_dir: ' + libgoods.config.archive_dir)
     
     #pop libgoods_archive from request_args since it's not a valid arg for get_model_subset
     request_args.pop('libgoods_archive', None)
