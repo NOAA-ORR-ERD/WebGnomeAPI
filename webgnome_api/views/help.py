@@ -9,9 +9,7 @@ import time
 import logging
 
 import urllib.parse
-import smtplib
 import base64
-from smtplib import SMTPAuthenticationError
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -24,16 +22,15 @@ import redis
 from docutils.core import publish_parts
 
 from cornice import Service
-from pyramid.httpexceptions import (HTTPNotFound,
+from pyramid.httpexceptions import (HTTPError,
+                                    HTTPNotFound,
                                     HTTPBadRequest,
-                                    HTTPUnauthorized,
-                                    HTTPInternalServerError)
+                                    HTTPUnauthorized)
 
+from google.auth.transport.requests import Request
+from google.auth.exceptions import GoogleAuthError, ClientCertError
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
-
-import pdb
-from pprint import pprint
+from googleapiclient.discovery import build
 
 from webgnome_api.common.views import cors_exception, cors_policy
 from webgnome_api.common.indexing import iter_keywords
@@ -113,8 +110,8 @@ def create_help_feedback(request):
     """
     try:
         json_request = ujson.loads(request.body)
-    except Exception:
-        raise cors_exception(request, HTTPBadRequest)
+    except Exception as e:
+        raise cors_exception(request, HTTPBadRequest) from e
 
     json_request['ts'] = int(time.time())
 
@@ -122,8 +119,12 @@ def create_help_feedback(request):
 
     try:
         save_feedback_to_smtp(request, json_request)
-    except SMTPAuthenticationError as e:
-        raise cors_exception(request, HTTPUnauthorized, explanation=f'{e}')
+    except GoogleAuthError as e:
+        raise cors_exception(
+            request,
+            HTTPUnauthorized,
+            explanation=f'{e}'
+        ) from e
 
     return json_request
 
@@ -156,8 +157,8 @@ def save_feedback_to_smtp(request, json_request):
         subject = 'WebGnomeAPI feedback'
 
     settings = request.registry.settings
+    oauth_creds = settings.get('oauth_credentials', {})
     sender = settings.get('help.smtp.sender', 'developer@noaa.gov')
-    password = settings.get('help.smtp.password', 'no password')
     recipients = settings.get(
         'help.smtp.recipients',
         'developer@noaa.gov'
@@ -170,92 +171,15 @@ def save_feedback_to_smtp(request, json_request):
     msg.attach(body)
     msg.attach(attachment)
 
-    save_msg_with_gmail_api(msg, "oauth2_credentials.json")
-
-
-def save_msg_with_gmail_api(msg, credentials_filename):
-    """save message using the gmail api"""
-    with open(credentials_filename, encoding="utf-8") as file:
-        config = ujson.load(file)
-
-    try:
-        web_cfg = config["web"]
-    except KeyError as e:
-        raise HTTPInternalServerError(
-            "OAUTH_CONFIG JSON must contain a top-level 'web' key"
-        ) from e
-    # logging.info('web_cfg: %s', web_cfg)
-
-    scopes = ["https://www.googleapis.com/auth/gmail.send"]
-    redirect_uri = web_cfg.get("redirect_uris", [None])[0]
-    if redirect_uri is None:
-        raise HTTPInternalServerError(
-            "No redirect URI available"
-        )
-    logging.info('redirect_uri: %s', redirect_uri)
-
-    flow = Flow.from_client_config(config, scopes=scopes)
-    flow.redirect_uri = redirect_uri
-
-    auth_url, _ = flow.authorization_url(
-        access_type="offline",
-        prompt="consent",
-        include_granted_scopes="true",
-    )
-
-    logging.info('Open this URL in a browser and authorize: %s', auth_url)
-    logging.info('After approval, paste either the full redirect URL '
-                 'or the "code" parameter value.')
-
-
-# import smtplib
-# import base64
-# from email.mime.text import MIMEText
-
-# # Assume you have already obtained an OAuth2 access token
-# # (This step typically involves using specific libraries like google-auth-oauthlib)
-# access_token = "YOUR_OAUTH2_ACCESS_TOKEN"
-# user_email = "your-email@gmail.com"
-# recipient_email = "recipient@example.com"
-
-# def generate_oauth2_string(username, token):
-#     """Generates an RFC 68ietf-rfc-6801 SASL XOAUTH2 authentication string."""
-#     auth_string = f"user={username}\x01auth=Bearer {token}\x01\x01"
-#     return base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-
-# # Email content
-# msg = MIMEText('This is the body of the email.')
-# msg['Subject'] = 'Test Email via OAuth2'
-# msg['From'] = user_email
-# msg['To'] = recipient_email
-
-# # Connect to the SMTP server and authenticate
-# try:
-#     server = smtplib.SMTP('smtp.gmail.com', 587)
-#     server.ehlo()
-#     server.starttls()
-#     server.ehlo()
-    
-#     # Authenticate using XOAUTH2
-#     auth_string_encoded = generate_oauth2_string(user_email, access_token)
-#     server.authenticate('XOAUTH2', lambda x: auth_string_encoded)
-    
-#     # Send the email
-#     server.sendmail(user_email, recipient_email, msg.as_string())
-#     print("Email sent successfully!")
-    
-# except smtplib.SMTPException as e:
-#     print(f"Error: {e}")
-
-# finally:
-#     server.quit()
+    return save_msg_with_gmail_api(msg, sender, oauth_creds, recipients)
 
 
 def generate_email_body(json_request):
-    resp = ''
-
+    """Generate our e-mail body from the request info"""
     ts_datetime = datetime.fromtimestamp(json_request['ts'], tz=timezone.utc)
     json_request['ts'] = f"{json_request['ts']} ({ts_datetime})"
+
+    resp = ''
 
     for k in ['id', 'path', 'ts', 'index', 'helpful', 'response']:
         v = json_request.get(k, 'None')
@@ -272,6 +196,7 @@ def generate_email_body(json_request):
 
 
 def generate_email_attachment(json_request):
+    """Generate our e-mail attachment from the request info"""
     content = f"{json_request.get('html', 'None')}<br>"
 
     part = MIMEBase('application', 'octet-stream')
@@ -291,13 +216,70 @@ def generate_email_attachment(json_request):
     return part
 
 
-def generate_oauth2_string(username, token):
-    """Generates an RFC 68ietf-rfc-6801 SASL XOAUTH2 authentication string."""
-    auth_string = f"user={username}\x01auth=Bearer {token}\x01\x01"
+def save_msg_with_gmail_api(msg, sender, oauth_creds, recipients):
+    """
+    Save message using the gmail api
+
+    Note: The credentials have been generated for a particular
+          Gmail user, and the sender probably needs to match.
+    """
+    _check_credentials(oauth_creds)
+    creds = _get_credentials_obj(oauth_creds)
+
+    try:
+        with build('gmail', 'v1', credentials=creds) as service:
+            create_message = {
+                'raw': base64.urlsafe_b64encode(msg.as_bytes()).decode()
+            }
+
+            res = service.users().messages().send(
+                userId="me",
+                body=create_message,
+            ).execute()
+            log.info('sent message to %s', res)
+    except HTTPError as e:
+        log.info('An error occurred: %s', e)
+        log.info('sender: %s, recipients: %s', sender, recipients)
+
+
+def _check_credentials(oauth_creds):
+    msgs = []
+    for k in ['client_id',
+              'client_secret',
+              'refresh_token',
+              'scopes',
+              'token',
+              'token_uri']:
+        if k not in oauth_creds:
+            msgs.append(f'Credential attribute {k} is missing')
+
+    if len(msgs) > 0:
+        raise ClientCertError(code=535, msg=';'.join(msgs))
+
+
+def _get_credentials_obj(oauth_creds):
+    """Uses the refresh token to obtain a new, short-lived access token"""
+    credentials = Credentials(**oauth_creds)
+
+    # Force a refresh to get a new access token
+    credentials.refresh(Request())
+
+    return credentials
+
+def _get_access_token(oauth_creds):
+    return _get_credentials_obj(oauth_creds).token
+
+
+def _get_sasl_oauth_string(email_user, access_token):
+    """
+    Creates the standardized SASL XOAUTH2 string for SMTP authentication.
+    """
+    auth_string = f'user={email_user}\x01auth=Bearer {access_token}\x01\x01'
     return base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
 
 
 def get_help_dir_from_config(request):
+    """Get help dir from config"""
     help_dir = request.registry.settings['help_dir']
 
     if help_dir[0] == sep:
