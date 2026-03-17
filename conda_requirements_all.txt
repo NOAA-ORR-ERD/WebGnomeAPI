@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2026-02-10
+# on 2026-03-17
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -12,7 +12,7 @@
 # NOTE: the python version is pinned to: 3.13 in the
 # build_requirements_file.py script.
 
-python=3.13
+python=3.13.*
 python>=3.10,<3.14
 awesome-slugify
 colander <2
@@ -31,7 +31,7 @@ mapbox_earcut
 pyogrio
 pyproj
 shapely>=2.1.2
-gridded >=0.7.4,<0.8
+gridded >=0.7.5,<0.8
 pynucos>=3.4.0
 cell_tree2d # should be brought in by gridded ..
 py_gd>=2.3.3
