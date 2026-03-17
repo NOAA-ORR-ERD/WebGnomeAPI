@@ -93,8 +93,9 @@ def get_model_metadata(request):
         bounds = ujson.loads(bounds)
 
     if model_id:
+        # AM comment: I don't think this every executes (for specifc model its parsed from metadata list)
         mdl = api.get_model(model_id)
-        return mdl.metadata
+        return mdl.metadata.as_pyson()
     else:
         retval = api.list_models(
             model_ids=supported_env_models,
@@ -757,7 +758,7 @@ def subset_process_func(request_args, mq):
 
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
-        
+
     # if libgoods.config.archive_dir does not exist, but a libgoods_archive is provided, use that
     if (libgoods.config.archive_dir is None):
         if request_args.get('libgoods_archive', None):
@@ -769,7 +770,7 @@ def subset_process_func(request_args, mq):
             mq.put('config.libgoods_archive not set')
     else:
         mq.put('libgoods.config.archive_dir: ' + libgoods.config.archive_dir.__str__())
-    
+
     #pop libgoods_archive from request_args since it's not a valid arg for get_model_subset
     request_args.pop('libgoods_archive', None)
 
