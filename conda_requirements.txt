@@ -54,3 +54,10 @@ redis-py=4.6.0
 # we need the redis server to manage sessions
 # uncomment is you want to use a conda installed version
 # redis
+
+# This is to allow the web server to send e-mails from a google account,
+# which we will be doing for the help feedback. 
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
