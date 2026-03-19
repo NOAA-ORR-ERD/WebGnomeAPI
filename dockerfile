@@ -30,6 +30,8 @@ RUN mkdir /config
 RUN cp gnome-deploy/config/webgnomeapi/config.ini /config/config.ini
 RUN ln -s /config/config.ini /webgnomeapi/config.ini
 
+RUN cp gnome-deploy/config/webgnomeapi/oauth_credentials.json /webgnomeapi/oauth_credentials.json
+
 EXPOSE 9899
 VOLUME /config
 VOLUME /models
