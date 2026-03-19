@@ -4,12 +4,12 @@
 #
 # build_requirements_file.py
 #
-# on 2026-03-17
+# on 2026-03-18
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
 #
-# NOTE: the python version is pinned to: 3.13 in the
+# NOTE: the python version is pinned to: 3.13.* in the
 # build_requirements_file.py script.
 
 python=3.13.*
@@ -71,6 +71,10 @@ gevent
 python-socketio
 gevent-websocket
 redis-py=4.6.0
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
 pytest
 webtest>=2.0
 testfixtures
