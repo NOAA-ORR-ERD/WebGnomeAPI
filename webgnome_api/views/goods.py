@@ -66,17 +66,49 @@ goods_requests = Service(name='goods_requests', path='/goods_requests*',
 @goods_list_models.get()
 def get_model_metadata(request):
     '''
-    gets set of metadata for all available models
+    gets a list set of the metadata objects for all available models.
+
+    parameters:
+
+    `map_bounds`:
 
     If map_bounds is set, only models that intersect those
     bounds will be returned.
 
     map_bounds is a polygon as a list of lon, lat pairs
+
+    `request_type`: what type of data you are looking for. A list of:
+
+    'surface currents'
+    '3D currents'
+    'surface winds'
+
+    But only: ["surface_currents"] is tested
     '''
+    # this is a temporary debugging thing, writing the request params
+    # to a file.
+    #   it should be deleted
+    # or set to use a logger.
+    # CHB used it to see what requests were being made.
+    DEBUG = True
+    model_id = request.GET.get('model_id', None)
 
     bounds = request.GET.get('map_bounds', None)
-    model_id = request.GET.get('model_id', None)
+    if bounds:
+        bounds = ujson.loads(bounds)
+
+
     request_type = request.GET.get('request_type')
+    if request_type:
+        request_type = ujson.loads(request_type)
+
+    if DEBUG:
+        with open('goods_list_models_log.txt', 'a') as debug_file:
+            debug_file.write("\nNew request:\n")
+            debug_file.write(f"{model_id=}\n")
+            debug_file.write(f"{bounds=}\n")
+            debug_file.write(f"{request_type=}\n")
+
     try:
         if any(cur in request_type for cur in ('surface currents',
                                                '3D currents')):
@@ -89,18 +121,17 @@ def get_model_metadata(request):
         supported_env_models = [supported_ocean_models + supported_met_models]
     retval = None
 
-    if bounds:
-        bounds = ujson.loads(bounds)
-
     if model_id:
-        # AM comment: I don't think this every executes (for specifc model its parsed from metadata list)
+        # AM comment: I don't think this every executes
+        # (for specific model its parsed from metadata list)
+        # CHB: ran webgnome dev, and this is used.
         mdl = api.get_model(model_id)
-        return mdl.metadata.as_pyson()
+        retval =  mdl.metadata.as_pyson()
     else:
         retval = api.list_models(
             model_ids=supported_env_models,
             map_bounds=bounds,
-            env_params=ujson.loads(request_type),
+            env_params=request_type,
             )
 
     return retval
@@ -314,6 +345,22 @@ def goods_request(request):
     '''
     This route is used to create, cancel or reconfirm requests
     returns the updated request object
+
+    Example Query (subset of GFS winds)
+
+    command create
+    model_id GFS
+    NorthLat 32.13693712654453
+    WestLon -150.47064739438775
+    EastLon -105.48316958086902
+    SouthLat 11.331783933709263
+    start_time 2026-03-18T16:00:00
+    end_time 2026-03-20T16:00:00
+    surface_only true
+    cross_dateline 0
+    include_winds false
+    request_type surface winds
+
     '''
 
     log_prefix = 'req{0}: interact_request() {1}'.format(
