@@ -23,7 +23,7 @@ no-build-isolation = true
 
 
 [dependencies]
-python = "3.13.*"
+python = ">=3.10,<3.14"
 awesome-slugify = "*"
 colander = "<2"
 progressbar = "*"
@@ -77,14 +77,18 @@ google-api-python-client = "*"
 google-auth = "*"
 google-auth-httplib2 = "*"
 google-auth-oauthlib = "*"
-pytest = "*"
-webtest = ">=2.0"
-testfixtures = "*"
+
 
 # [feature.run.pypi-dependencies]
 # gnome = {path = "wheelhouse/gnome-1.1.19.dev0-cp313-cp313-macosx_10_13_x86_64.whl"}
 
 [feature.dev.dependencies]
+python = "3.13.*"
+ipython = "*"
+pytest = "*"
+webtest = ">=2.0"
+testfixtures = "*"
+
 # needed to build pygnome
 cython="3.*"
 pip = "*"
@@ -95,6 +99,12 @@ cmake = "*"
 ninja = "*"
 scikit-build-core = ">=0.9.9"
 
+[feature.dev.pypi-dependencies]
+# for dev, depends on the local source
+webgnome-api = { path = ".", editable = true }
+gnome = {path = "../pygnome/py_gnome/", editable = true }
+libgoods = {path = "../libgoods/", editable = true }
+
 # need redis server for Mac
 [target.osx-64.dependencies]
 redis-server = "*"
@@ -102,10 +112,6 @@ redis-server = "*"
 [target.osx-arm64.dependencies]
 redis-server = "*"
 
-[feature.dev.pypi-dependencies]
-webgnome-api = { path = ".", editable = true }
-# pygnome = {path = "../pygnome/py_gnome/", editable = true }
-libgoods = {path = "../libgoods/", editable = true }
 
 [environments]
 default = { solve-group = "default" }
@@ -115,4 +121,29 @@ dev = ["dev"]
 
 
 [tasks]
-build = "pip install --no-build-isolation ."
+# this starts redis on OS-X (it's provided by conda-forge)
+# I can't get it to not wait for it to complete -- even though "& is there"
+# redis = { cmd = """{% if "osx" in pixi.platform  %} redis-server & {% else %} echo "Not Starting redis -- it should be already running" {% endif %}"""}
+test = { cmd = "pytest", default-environment = "dev" } # , depends-on = ["redis"] }
+
+
+# Examples from Pixi Docs:
+
+# [tasks]
+# greet = { cmd = "echo Hello: running on: {{ pixi.platform }}!" }
+# # The arg `text`, converted to uppercase, will be printed.
+# task1 = { cmd = "echo {{ text | upper }}", args = ["text"] }
+# # If arg `text` contains 'hoi', it will be converted to lowercase. The result will be printed.
+# task2 = { cmd = "echo {{ text | lower if 'hoi' in text }}", args = [
+#   { arg = "text", default = "" },
+# ] }
+# # With `a` and `b` being strings, they will be appended and then printed.
+# task3 = { cmd = "echo {{ a + b }}", args = ["a", { arg = "b", default = "!" }] }
+# # If the string "win" is in arg `platform`, "windows" will be printed, otherwise "unix".
+# task4 = { cmd = """echo {% if "win" in platform  %}windows{% else %}unix{% endif %}""", args = [
+#   "platform",
+# ] }
+# # `names` will be split by whitespace and then every name will be printed separately
+# task5 = { cmd = "{% for name in names | split %} echo {{ name }};{% endfor %}", args = [
+#   "names",
+# ] }
