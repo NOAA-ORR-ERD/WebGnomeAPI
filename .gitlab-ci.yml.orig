@@ -1,0 +1,554 @@
+variables:
+  PYTHON_VER: '3.13'
+  PYGNOME_PROJECT_ID: '7'
+  APP_NETWORK: webgnome_net
+  UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+  PYGNOME_VER: develop
+  LIBGOODS_VER: develop
+  WEBGNOME_API_VER: develop
+  WEBGNOME_CLIENT_VER: develop
+  MY_SERVER_ROLE_TAG: 'gnome'
+  LATEST_IMAGE: false
+
+# Ok, here is the strategy I believe we want for our pipeline.
+# - First, we test our sources.
+#
+# - Next, we build a temporarily named docker image.  We don't want to have
+#   an officially named image that isn't passing the tests.
+#
+# - Next, we test the docker image that was built.
+#
+# - Next, we rename the docker image to its official name in the registry.
+#
+# - Next, we deploy the docker image
+#
+# Note: we would like to cleanup the temporary docker tag from the container
+#       registry, but the solution provided by the GitLab docs cleans everything
+#       up, including the tag we want to keep.
+
+stages:
+  - util
+  - build
+  - test
+  - deploy
+  - maintenance
+
+test source:
+  stage: test
+  needs: []
+  rules:
+    - if:
+        ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
+        $CI_COMMIT_BRANCH != "production")
+      variables:
+        UPSTREAM_BRANCH: 'develop'
+    - if: $CI_PIPELINE_SOURCE == "pipelines"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "schedules"
+      when: never
+  tags:
+    - docker
+    - linux
+  image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
+  before_script:
+    - apt-get install -y curl unzip
+  script:
+    ## We want to get the artifacts from the pygnome compile job, which is
+    ## a different CI pipeline altogether where:
+    ## - $PYGNOME_PROJECT_ID is the pygnome project id (defined as literal)
+    ## - $CI_COMMIT_BRANCH is the branch
+    ## - compile_pygnome is the job_name
+    - >
+      curl
+      "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
+      --output artifacts.zip
+    - ls -l artifacts.zip || echo "no file artifacts.zip"
+    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
+      artifacts.zip"
+    - head artifacts.zip
+
+    - apt-get install -y redis
+    - redis-server --daemonize yes
+
+    # get libgoods
+    - git clone --depth 1 -b $UPSTREAM_BRANCH
+      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+
+    # install all the requirements
+    - conda install -y python=$PYTHON_VER --file conda_requirements.txt --file
+      conda_requirements_test.txt --file libgoods/conda_requirements.txt --file
+      /pygnome/py_gnome/conda_requirements.txt
+
+    - pushd libgoods && pip install . && popd
+    - pip install .
+    - python location_files/compile_locations.py
+    - python location_files/test_locations.py
+    - conda env export > webgnome_api/views/deployed_environment.yaml
+    - cd webgnome_api/tests && pytest
+  #   - conda list > conda_packages.txt
+  # artifacts:
+  #   when: always
+  #   expire_in: 15 days
+  #   paths:
+  #     - ./conda_packages.txt
+
+test docker image:
+  rules:
+    - if: $TF_DESTROY != 'true'
+  stage: test
+  allow_failure: true
+  needs:
+    - Build Mono Image
+  tags:
+    - docker
+    - Infrastructure
+    - docker-ci-templates
+  image:
+    name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
+    entrypoint: ['']
+  script:
+    - apt update
+    - apt install redis -y
+    - redis-server --daemonize yes
+    - /env/bin/pip install pytest webtest>=2.0 testfixtures
+    - /env/bin/pytest --pyargs webgnome_api
+
+####
+###
+###  RHEL deployment
+###
+###
+
+.Build Development Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'Development'
+    TF_VAR_environment_tag: 'Development'
+    TF_VAR_application_name: 'gnome-dev'
+    TF_VAR_instance_count: 1
+    TF_VAR_vm_cpu_cores_per_socket: 1
+    TF_VAR_vm_cpu_cores: 4
+    TF_VAR_vm_memory: 4096
+    TF_VAR_vm_data_disk_size: 100
+    TF_VAR_vm_disk_size: 100
+    TF_ROOT: 'terraform/vmware'
+    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+.Build Staging Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'Staging'
+    TF_VAR_environment_tag: 'Staging'
+    TF_VAR_application_name: 'gnome-stg'
+    TF_VAR_instance_count: 1
+    TF_VAR_vm_cpu_cores_per_socket: 1
+    TF_VAR_vm_cpu_cores: 4
+    TF_VAR_vm_memory: 4096
+    TF_VAR_vm_data_disk_size: 100
+    TF_VAR_vm_disk_size: 100
+    TF_ROOT: 'terraform/vmware'
+    TF_VAR_vm_template_name: $GLOBAL_REDHAT_BASELINE_STABLE
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.vm.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+.Build Production Server:
+  stage: build
+  needs: []
+  variables:
+    # Terraform variables for specifying server configurations.
+    TF_VAR_line_office: NOS
+    TF_VAR_division: ERD
+    TF_VAR_program: ORR
+    TF_VAR_program_manager: 'amy.macfadyen@noaa.gov'
+    TF_VAR_system_owner_name: 'Naomi Connolly'
+    TF_VAR_system_owner_email: 'naomi.connolly@noaa.com'
+    TF_VAR_role_tag: '$MY_SERVER_ROLE_TAG'
+    TF_STATE_NAME: 'prod'
+    TF_VAR_environment_tag: 'prod'
+    TF_VAR_application_name: 'gnome-prod'
+    TF_VAR_instance_count: 1
+    TF_VAR_ami_name: $GLOBAL_LATEST_RHEL8_BASELINE
+    TF_ROOT: 'terraform/aws'
+    TF_VAR_account_tag: 'erma'
+    TF_VAR_instance_type: 't3.xlarge'
+    TF_VAR_root_volume_type: 'gp2'
+    TF_VAR_root_volume_size: 100
+    TF_VAR_data_volume_type: 'gp2'
+    TF_VAR_data_volume_size: 100
+    TF_VAR_subnet_id: 'subnet-041022ffbcb0cd6e8'
+    TF_VAR_security_group_id: 'sg-0cfd1c6f73bc2f1e5'
+  trigger:
+    forward:
+      pipeline_variables: true
+    strategy: depend
+    include:
+      - project: templates/developer-ci-templates
+        ref: develop
+        file: 'jobs/terraform/terraform.ec2.gitlab-ci.yml'
+  rules:
+    - if: $TF_DESTROY == 'true'
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+###
+###
+### Maintenance tasks
+###
+###
+
+.prune_session_folders_dev:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: dev-deployment
+    url: https://gnome-dev.orr.noaa.gov
+  tags:
+    - gnome-dev
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_session_folders.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.prune_tmp_files_dev:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: dev-deployment
+    url: https://gnome-dev.orr.noaa.gov
+  tags:
+    - gnome-dev
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_tmp_files.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.prune_session_folders_stage:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: stage-deployment
+    url: https://gnome-stage.orr.noaa.gov
+  tags:
+    - gnome-stage
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_session_folders.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.prune_tmp_files_stage:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: stage-deployment
+    url: https://gnome-stage.orr.noaa.gov
+  tags:
+    - gnome-stage
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_tmp_files.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.prune_session_folders_production:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: production-deployment
+    url: https://gnome.orr.noaa.gov
+  tags:
+    - gnome-prod
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_session_folders.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.prune_tmp_files_production:
+  stage: maintenance
+  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
+  environment:
+    name: production-deployment
+    url: https://gnome.orr.noaa.gov
+  tags:
+    - gnome-prod
+    - deploy
+  variables:
+    CONTAINER_NAME: webgnome_api
+    SCRIPT_NAME: ./prune_old_tmp_files.sh
+  script:
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
+
+.docker tidy:
+  stage: util
+  when: manual
+  script:
+    - docker system prune -f -a --volumes
+
+.docker prod tidy:
+  extends: '.docker tidy'
+  only:
+    refs:
+      - production
+  tags:
+    - deploy
+    - gnome-prod
+
+.docker dev tidy:
+  extends: '.docker tidy'
+  only:
+    refs:
+      - develop
+  tags:
+    - deploy
+    - gnome-dev
+
+.docker stage tidy:
+  extends: '.docker tidy'
+  only:
+    refs:
+      - main
+  tags:
+    - deploy
+    - gnome-stage
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'production'
+      variables:
+        PYGNOME_VER: production
+        LIBGOODS_VER: develop
+        WEBGNOME_API_VER: production
+        WEBGNOME_CLIENT_VER: production
+        LATEST_IMAGE: true
+    - if: $CI_COMMIT_BRANCH == 'main'
+      variables:
+        PYGNOME_VER: main
+        LIBGOODS_VER: develop
+        WEBGNOME_API_VER: main
+        WEBGNOME_CLIENT_VER: main
+    - if: $CI_COMMIT_REF_NAME
+
+include:
+  - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
+        when: never
+      - if: $CI_COMMIT_REF_NAME != 'production'
+    inputs:
+      job-name: 'Build mono:${CI_COMMIT_REF_NAME} Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
+      version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
+      image-name: 'mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
+      dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
+      latest: false # This boolean value determines if the 'latest' tag is applied to the image with the version
+      build-args:
+        - 'BUILD_KEY=${BUILD_KEY}'
+        - 'PYTHON_VER=${PYTHON_VER}'
+        - 'PYGNOME_VER=${PYGNOME_VER}'
+        - 'LIBGOODS_VER=${LIBGOODS_VER}'
+        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
+        - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
+  - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Build mono:${CI_COMMIT_REF_NAME} Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
+      version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
+      image-name: 'mono' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
+      dockerfile-path: dockerfile.mono # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
+      latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
+      build-args:
+        - 'BUILD_KEY=${BUILD_KEY}'
+        - 'PYTHON_VER=${PYTHON_VER}'
+        - 'PYGNOME_VER=${PYGNOME_VER}'
+        - 'LIBGOODS_VER=${LIBGOODS_VER}'
+        - 'WEBGNOME_API_VER=${WEBGNOME_API_VER}'
+        - 'WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}'
+  - component: $CI_SERVER_FQDN/components/build-publish-docker-image/BuildPublishContainerRegistryImage@v3.0.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Do not run this job for merge requests
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      before-script:
+        - git clone
+          https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/data.git
+          --depth=1
+      job-name: 'Build Proxy Image' # (Optional) The name of the GitLab job. If not specified then `BuildDockerImage` is used.
+      stage: build # Specifies the pipeline stage (e.g., build, test, deploy) where the component will run
+      version: $CI_COMMIT_REF_NAME # (Optional) Specifies the image version, following semantic versioning. If the version is not specified, then `0.0.0-build.${CI_COMMIT_SHORT_SHA}` is used.
+      image-name: 'proxy' # The name of the Docker image to be built and published. The CI_REGISTRY_IMAGE path is added through the job.
+      dockerfile-path: dockerfile.proxy # Relative path to the Dockerfile in your repository. Useful if your Dockerfile is in a non-standard location.
+      latest: true # This boolean value determines if the 'latest' tag is applied to the image with the version
+  - component: $CI_SERVER_FQDN/components/ansible/Ansible@v1.3.0
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME
+    inputs:
+      job-name: 'Get stage logs'
+      stage: maintenance
+      log-level: info
+      when: manual
+      environment-name: 'stage'
+      deployment-target: 'vmware'
+      playbook-file-name: 'get-container-logs.yml'
+      ansible-inventory-file: hosts/stage-vmware.yml
+      job-artifacts:
+        - /builds/CAMEO/cameo_chemicals/website/ansible/playbooks/*.txt
+      runner-tags:
+        - ansible-playbooks
+        - Infrastructure
+        - developer-ci-templates
+  # deploy to stage if the commit/merge was into the default branch (usually main)
+  - component: $CI_SERVER_FQDN/components/ansible/Ansible@v1.3.0
+    rules:
+      - if: $TF_DESTROY == "true"
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    inputs:
+      job-name: 'Deploy to stage'
+      log-level: info
+      stage: deploy
+      environment-name: stage
+      deployment-target: vmware
+      playbook-file-name: deploy.yml
+      ansible-inventory-file: hosts/stage-vmware.yml
+      runner-tags:
+        - ansible-playbooks
+        - Infrastructure
+        - developer-ci-templates
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME == 'production' # only deploy to production from the production branch
+    inputs:
+      job-name: 'Deploy Production'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'prod'
+      log-level: 'debug'
+      deployment-target: 'aws'
+      docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
+      runner-tags:
+        - 'docker'
+        - 'aws'
+        - 'us-west-2'
+        - 'prod'
+      docker-compose-environment-variables:
+        - API_SCALE=40
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME == 'main' # only deploy to stage from the main branch
+    inputs:
+      job-name: 'Deploy Stage'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'stage'
+      log-level: 'debug'
+      deployment-target: 'vmware'
+      docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
+      docker-compose-environment-variables:
+        - API_SCALE=10
+  - component: $CI_SERVER_FQDN/components/docker-compose/DockerCompose@v1.0.5
+    rules:
+      - if: $TF_DESTROY == "true" # Do not run when TF_DESTROY is true
+        when: never
+      - if: $CI_COMMIT_REF_NAME # just update develop with whatever is the latest push regardless of origin
+    inputs:
+      job-name: 'Deploy Dev'
+      action: 'deploy'
+      server-role-tag: $MY_SERVER_ROLE_TAG
+      docker-compose-file-path: 'docker-compose.yml'
+      environment-name: 'dev'
+      log-level: 'debug'
+      deployment-target: 'vmware'
+      docker-compose-pull-images: true
+      docker-compose-max-parallel-connections: 1 # limit the number of connections due to the amount of containers that are scaled
+      docker-compose-pull-logs: false # don't pull logs for a similar reason as the parallel connections above.
+      docker-compose-environment-variables:
+        - API_SCALE=1
