@@ -19,185 +19,108 @@ stages:
 
 
 
-test source:
-  stage: test
-  needs: []
-  rules:
-    - if:
-        ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
-        $CI_COMMIT_BRANCH != "production")
-      variables:
-        UPSTREAM_BRANCH: 'develop'
-    - if: $CI_PIPELINE_SOURCE == "pipelines"  # NOTE: Not in the list here https://docs.gitlab.com/ci/jobs/job_rules/#ci_pipeline_source-predefined-variable
-      when: never
-    - if: $CI_PIPELINE_SOURCE == "schedules"  # NOTE: Not in the list here https://docs.gitlab.com/ci/jobs/job_rules/#ci_pipeline_source-predefined-variable
-      when: never
-  tags:
-    - "docker"
-    - "aws"
-    - "us-west-2"
-  image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
+.build_template: &build_definition
+  stage: build
+  image: docker:dind
+  services:
+    - docker:dind
   before_script:
+    - unset DOCKER_AUTH_CONFIG
   script:
-    ## We want to get the artifacts from the pygnome compile job, which is
-    ## a different CI pipeline altogether where:
-    ## - $PYGNOME_PROJECT_ID is the pygnome project id (defined as literal)
-    ## - $CI_COMMIT_BRANCH is the branch
-    ## - compile_pygnome is the job_name
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
     - >
-      apt-get install -y curl unzip
-    - curl
-      "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
-      --output artifacts.zip
-    - ls -l artifacts.zip || echo "no file artifacts.zip"
-    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
-      artifacts.zip"
-    - head artifacts.zip
-
-    - apt-get install -y redis
-    - redis-server --daemonize yes
-
-    # get libgoods
-    - git clone --depth 1 -b $UPSTREAM_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-
-    # install all the requirements
-    - conda install -y python=$PYTHON_VER --file conda_requirements.txt --file
-      conda_requirements_test.txt --file libgoods/conda_requirements.txt --file
-      /pygnome/py_gnome/conda_requirements.txt
-
-    - pushd libgoods && pip install . && popd
-    - pip install .
-    - python location_files/compile_locations.py
-    - python location_files/test_locations.py
-    - conda env export > webgnome_api/views/deployed_environment.yaml
-    - cd webgnome_api/tests && pytest
-  #   - conda list > conda_packages.txt
-  # artifacts:
-  #   when: always
-  #   expire_in: 15 days
-  #   paths:
-  #     - ./conda_packages.txt
-
-test docker image:
-  rules:
-    - if: $TF_DESTROY != 'true'
-  stage: test
-  allow_failure: true
-  needs:
-    - Build Mono Image
+      docker build \
+        --build-arg git_commit_short_hash=${CI_COMMIT_SHORT_SHA} \
+        --build-arg build_env=${TARGET_ENV} \
+        --build-arg PYTHON_VER=${PYTHON_VER} \
+        --build-arg PYGNOME_VER=${PYGNOME_VER} \
+        --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
+        --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
+        --no-cache \
+        -f Dockerfile \
+        -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+    - echo "GCR_IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
   tags:
     - "docker"
     - "aws"
     - "us-west-2"
-  image:
-    name: $CI_REGISTRY_IMAGE/webgnomeapi-mono:$CI_COMMIT_REF_NAME
-    entrypoint: ['']
+
+.deploy_template: &deploy_definition
+  stage: deploy
+  image: docker:dind
+  when: manual
+  services:
+    - docker:dind
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
   script:
-    - apt update
-    - apt install redis -y
-    - redis-server --daemonize yes
-    - /env/bin/pip install pytest webtest>=2.0 testfixtures
-    - /env/bin/pytest --pyargs webgnome_api
-#
-# .build_template: &build_definition
-#   stage: build
-#   image: docker:dind
-#   services:
-#     - docker:dind
-#   before_script:
-#     - unset DOCKER_AUTH_CONFIG
-#   script:
-#     - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
-#     - >
-#       docker build \
-#         --build-arg git_commit_short_hash=${CI_COMMIT_SHORT_SHA} \
-#         --build-arg build_env=${TARGET_ENV} \
-#         --no-cache \
-#         -f Dockerfile \
-#         -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .
-#     - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
-#     - echo "GCR_IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" >> build.env
-#   artifacts:
-#     reports:
-#       dotenv: build.env
-#   tags:
-#     - "docker"
-#     - "aws"
-#     - "us-west-2"
-#
-# .deploy_template: &deploy_definition
-#   stage: deploy
-#   image: docker:dind
-#   when: manual
-#   services:
-#     - docker:dind
-#   before_script:
-#     - unset DOCKER_AUTH_CONFIG
-#   script:
-#     - apk --update --no-cache add bash aws-cli
-#     # Pull image from GCR using GCR_IMAGE from previous job.
-#     - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
-#     - echo "Pulling $GCR_IMAGE"
-#     - docker pull "$GCR_IMAGE"
-#     - docker logout "${CI_REGISTRY}"
-#     - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REPO_URI"
-#     - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:latest"
-#     - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
-#     - echo "Pushing $GCR_IMAGE to ${ECR_REPO_URI}"
-#     - docker push "${ECR_REPO_URI}:latest"
-#     - docker push "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
-#     - |
-#       for SERVICE in $FARGATE_SERVICES; do
-#         SERVICE_NAME=$(echo $SERVICE | awk -F: '{print $1}')
-#         SERVICE_COUNT=$(echo $SERVICE | awk -F: '{print $2}')
-#         aws ecs update-service --cluster "$FARGATE_CLUSTER" \
-#             --service "$SERVICE_NAME" \
-#             --desired-count "$SERVICE_COUNT" \
-#             --force-new-deployment --debug
-#       done
-#   tags:
-#     - "docker"
-#     - "aws"
-#     - "us-west-2"
-#
-# .dev: &dev_definition
-#   environment:
-#     name: dev
-#     url: https://tap-dev.nos-orr.net
-#   variables:
-#       API_URL: https://tap-dev.nos-orr.net/api
-#       TARGET_ENV: dev
-#   rules:
-#   - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
-#     when: never
-#   - if: $CI_COMMIT_BRANCH == "develop"
-#
-#
-# .prod: &prod_definition
-#   environment:
-#     name: prod
-#     url: https://tap.orr.noaa.gov
-#   variables:
-#       API_URL: https://tap.orr.noaa.gov/api
-#       TARGET_ENV: prod
-#   rules:
-#   - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
-#     when: never
-#   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-#
-# Development Build Docker Image:
-#   <<: *build_definition
-#   <<: *dev_definition
-#
-# Production Build Docker Image:
-#   <<: *build_definition
-#   <<: *prod_definition
-#
-# Development Push to ECR and Update Fargate Service:
-#   <<: *deploy_definition
-#   <<: *dev_definition
-#
-# Production Push to ECR and Update Fargate Service:
-#   <<: *deploy_definition
-#   <<: *prod_definition
+    - apk --update --no-cache add bash aws-cli
+    # Pull image from GCR using GCR_IMAGE from previous job.
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - echo "Pulling $GCR_IMAGE"
+    - docker pull "$GCR_IMAGE"
+    - docker logout "${CI_REGISTRY}"
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REPO_URI"
+    - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:latest"
+    - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
+    - echo "Pushing $GCR_IMAGE to ${ECR_REPO_URI}"
+    - docker push "${ECR_REPO_URI}:latest"
+    - docker push "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
+    - |
+      for SERVICE in $FARGATE_SERVICES; do
+        SERVICE_NAME=$(echo $SERVICE | awk -F: '{print $1}')
+        SERVICE_COUNT=$(echo $SERVICE | awk -F: '{print $2}')
+        aws ecs update-service --cluster "$FARGATE_CLUSTER" \
+            --service "$SERVICE_NAME" \
+            --desired-count "$SERVICE_COUNT" \
+            --force-new-deployment --debug
+      done
+  tags:
+    - "docker"
+    - "aws"
+    - "us-west-2"
+
+.dev: &dev_definition
+  environment:
+    name: dev
+    url: https://gnome-dev.nos-orr.net
+  variables:
+      API_URL: https://gnome-dev.nos-orr.net
+      TARGET_ENV: dev
+  rules:
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
+    when: never
+  - if: $CI_COMMIT_BRANCH == "fargate-migration"
+
+
+.prod: &prod_definition
+  environment:
+    name: prod
+    url: https://gnome.orr.noaa.gov
+  variables:
+      API_URL: https://gnome.orr.noaa.gov
+      TARGET_ENV: prod
+  rules:
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
+    when: never
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+Development Build Docker Image:
+  <<: *build_definition
+  <<: *dev_definition
+
+Production Build Docker Image:
+  <<: *build_definition
+  <<: *prod_definition
+
+Development Push to ECR and Update Fargate Service:
+  <<: *deploy_definition
+  <<: *dev_definition
+
+Production Push to ECR and Update Fargate Service:
+  <<: *deploy_definition
+  <<: *prod_definition

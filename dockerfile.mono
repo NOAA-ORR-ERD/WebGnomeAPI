@@ -24,15 +24,17 @@ RUN cd /webgnomeclient && grunt build
 
 
 FROM debian:stable-slim
-
 COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
-RUN ./environment.sh && cat /activate.sh >> ~/.bashrc
+RUN ./environment.sh && \
+    /env/bin/pip install supervisor htmlmin2 jsmin ujson && \
+    cat /activate.sh >> ~/.bashrc
 ENV BASH_ENV="/root/.bashrc"
 
 RUN bash -c "python ./location_files/compile_locations.py"
 
+COPY config_files/ config_files/
 
-ENTRYPOINT ["/bin/bash", "-c", "pserve config.ini"]
+CMD ["bash", "/config_files/docker_entrypoint.sh"]

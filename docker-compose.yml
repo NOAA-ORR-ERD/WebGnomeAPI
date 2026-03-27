@@ -108,7 +108,7 @@ volumes:
   redisdata:
     name: redisdata
   models:
-    name: webgnome_models
+    name: webgnom/e_models
 
 configs:
   api_config:

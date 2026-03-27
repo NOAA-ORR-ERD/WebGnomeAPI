@@ -100,6 +100,29 @@ class DummySession(object):
     session_id = 'DummySession'
 
 
+def parse_redis_uri(settings):
+    """
+    Parse REDIS_URI environment variable and update settings.
+    REDIS_URI format: rediss://hostname:port or redis://hostname:port
+    Falls back to existing settings if REDIS_URI is not present.
+    """
+    redis_uri = os.environ.get('REDIS_URI')
+    if redis_uri:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(redis_uri)
+
+            if parsed.hostname:
+                settings['redis.sessions.host'] = parsed.hostname
+                print(f'Using Redis host from REDIS_URI: {parsed.hostname}')
+
+            if parsed.port:
+                settings['redis.sessions.port'] = str(parsed.port)
+                print(f'Using Redis port from REDIS_URI: {parsed.port}')
+        except Exception as e:
+            print(f'Warning: Failed to parse REDIS_URI: {e}. Using config file values.')
+
+
 def reconcile_directory_settings(settings):
     save_file_dir = settings['save_file_dir']
 
@@ -246,6 +269,7 @@ def main(global_config, **settings):
         if e.errno != 17:
             raise
 
+    parse_redis_uri(settings)
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
     start_session_cleaner(settings)
