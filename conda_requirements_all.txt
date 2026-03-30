@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2026-03-19
+# on 2026-03-30
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -36,19 +36,17 @@ pynucos>=3.4.0
 cell_tree2d # should be brought in by gridded ..
 py_gd>=2.3.3
 adios_db>=1.2.7
-python>=3.10,<3.15
-xarray-subset-grid
-netCDF4
+python>=3.10,<3.14
+extract_model
+netCDF4  
 numpy
 requests
 shapely
 s3fs
 pandas
-pyyaml
+yaml
 siphon
 fiona
-cfgrib
-zarr<3
 python>=3.9,<3.14
 setuptools<81  # need old version for Pyramid and pkg_resources
 numpy
