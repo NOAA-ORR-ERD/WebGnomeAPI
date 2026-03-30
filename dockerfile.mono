@@ -36,7 +36,8 @@ COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && \
     /env/bin/pip install supervisor && \
-    cat /activate.sh >> ~/.bashrc
+    cat /activate.sh >> ~/.bashrc && \
+    mkdir -p /models/session /save_files /help /location_files /archive
 ENV BASH_ENV="/root/.bashrc"
 
 RUN bash -c "python ./location_files/compile_locations.py"
