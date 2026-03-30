@@ -31,7 +31,6 @@ COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 COPY conda_requirements.txt /conda_requirements.txt
 RUN ./environment.sh && \
     conda install --file conda_requirements.txt && \
-    /env/bin/pip install supervisor pyramid pyramid_log htmlmin2 jsmin ujson && \
     cat /activate.sh >> ~/.bashrc
 ENV BASH_ENV="/root/.bashrc"
 
