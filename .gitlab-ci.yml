@@ -37,7 +37,7 @@ stages:
         --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
         --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
         --no-cache \
-        -f Dockerfile \
+        -f dockerfile.mono \
         -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .
     - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
     - echo "GCR_IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" >> build.env
