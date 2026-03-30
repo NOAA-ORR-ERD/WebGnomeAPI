@@ -30,7 +30,7 @@ pyramid_session_redis
 cornice>=3.4
 ujson
 docutils
-htmlmin2
+htmlmin
 jsmin
 gitpython
 waitress

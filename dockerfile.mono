@@ -13,6 +13,12 @@ ARG PYGNOME_VER=main
 ARG LIBGOODS_VER=develop
 ARG WEBGNOME_API_VER=main
 
+ENV BUILD_KEY=${BUILD_KEY}
+ENV PYTHON_VER=${PYTHON_VER}
+ENV PYGNOME_VER=${PYGNOME_VER}
+ENV LIBGOODS_VER=${LIBGOODS_VER}
+ENV WEBGNOME_API_VER=${WEBGNOME_API_VER}
+
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
 
@@ -28,9 +34,7 @@ COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
-COPY conda_requirements.txt /conda_requirements.txt
 RUN ./environment.sh && \
-    conda install --file conda_requirements.txt && \
     cat /activate.sh >> ~/.bashrc
 ENV BASH_ENV="/root/.bashrc"
 
