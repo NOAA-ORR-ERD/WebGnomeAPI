@@ -4,6 +4,7 @@
 # that environment over to a minimal base image. The self-extracting
 # script will install the full python environment.
 ARG WEBGNOME_CLIENT_VER=main
+ARG PYGNOME_COMMIT_BRANCH=develop
 
 FROM registry.orr.noaa.gov/erd/environments/ubuntu-pixi:latest AS api
 
@@ -16,21 +17,44 @@ ARG WEBGNOME_API_VER=main
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
 
+
+# Build the Web Gnome Client
 FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client
-
 COPY ./mono-config-client.json ./config.json
-
 RUN cd /webgnomeclient && grunt build
 
 
-FROM debian:stable-slim
-COPY --from=api /.tempenv/environment.sh ./
+# FROM debian:stable-slim
+FROM registry.orr.noaa.gov/gnome/pygnome:${PYGNOME_COMMIT_BRANCH} as pygnome
+ARG PYTHON_VER
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y redis
+COPY ./ /webgnomeapi/
+WORKDIR /webgnomeapi/
+
+RUN conda install -y python=$PYTHON_VER \
+        --file conda_requirements.txt \
+        --file libgoods/conda_requirements.txt \
+        --file /pygnome/py_gnome/conda_requirements.txt
+
+RUN cd libgoods && python -m pip install ./
+# add the environment file so the api can serve it up
+RUN  conda env export > webgnome_api/views/deployed_environment.yaml
+
+RUN python -m pip install ./
+
 COPY ./location_files ./location_files
+
+
+COPY --from=api /.tempenv/environment.sh ./
 COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
+
 RUN ./environment.sh && \
     /env/bin/pip install supervisor htmlmin2 jsmin ujson && \
     cat /activate.sh >> ~/.bashrc
+
 ENV BASH_ENV="/root/.bashrc"
 
 RUN bash -c "python ./location_files/compile_locations.py"
