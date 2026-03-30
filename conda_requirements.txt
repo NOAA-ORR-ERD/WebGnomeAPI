@@ -53,6 +53,3 @@ redis-py=4.6.0
 # we need the redis server to manage sessions
 # uncomment is you want to use a conda installed version
 # redis
-
-# Used in deployments to manage processes.
-supervisor

@@ -35,6 +35,7 @@ COPY ./location_files ./location_files
 COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 RUN ./environment.sh && \
+    pip install supervisor && \
     cat /activate.sh >> ~/.bashrc
 ENV BASH_ENV="/root/.bashrc"
 
