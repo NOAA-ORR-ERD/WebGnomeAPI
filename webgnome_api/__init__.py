@@ -161,7 +161,7 @@ def load_oauth_credentials(config):
     """
     Load our configuration with the OAuth2 credentials.  Right now it is just
     a file that is built with the gen_gmail_token command-line tool.
-    
+
     Note: We will probably want to change this to something safer.
     """
     credentials_filename = './oauth_credentials.json'
@@ -265,7 +265,7 @@ def main(global_config, **settings):
 
     try:
         import libgoods
-        if os.path.isdir(archive_dir):
+        if archive_dir is not None and os.path.isdir(archive_dir):
             libgoods.config.archive_dir = archive_dir
     except ImportError:
         print("libgoods package not available "
