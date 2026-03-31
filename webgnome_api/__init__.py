@@ -161,7 +161,7 @@ def load_oauth_credentials(config):
     """
     Load our configuration with the OAuth2 credentials.  Right now it is just
     a file that is built with the gen_gmail_token command-line tool.
-    
+
     Note: We will probably want to change this to something safer.
     """
     credentials_filename = './oauth_credentials.json'
