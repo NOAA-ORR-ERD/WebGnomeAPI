@@ -265,7 +265,7 @@ def main(global_config, **settings):
 
     try:
         import libgoods
-        if os.path.isdir(archive_dir):
+        if archive_dir is not None and os.path.isdir(archive_dir):
             libgoods.config.archive_dir = archive_dir
     except ImportError:
         print("libgoods package not available "
