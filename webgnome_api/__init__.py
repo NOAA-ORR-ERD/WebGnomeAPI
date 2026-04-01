@@ -32,24 +32,25 @@ __version__ = "1.1.6dev"
 logging.basicConfig()
 
 supported_ocean_models = ['ESPC',
-                          'WCOFS',
-                          'NGOFS2',
-                          'LMHOFS',
-                          'LSOFS',
-                          'LOOFS',
-                          'LEOFS',
-                          'CIOFS',
-                          'CBOFS',
-                          'DBOFS',
-                          'SFBOFS',
-                          'TBOFS',
-                          'GOMOFS',
-                          'SSCOFS',
                           'TAMU',
                           ]
+coops_models = [
+    'WCOFS',
+    'NGOFS2',
+    'LMHOFS',
+    'LSOFS',
+    'LOOFS',
+    'LEOFS',
+    'CIOFS',
+    'CBOFS',
+    'DBOFS',
+    'SFBOFS',
+    'TBOFS',
+    'GOMOFS',
+    'SSCOFS',
+]
 
 supported_met_models = ['GFS']
-
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -267,6 +268,8 @@ def main(global_config, **settings):
         import libgoods
         if archive_dir is not None and os.path.isdir(archive_dir):
             libgoods.config.archive_dir = archive_dir
+            supported_ocean_models.extend(coops_models)
+
     except ImportError:
         print("libgoods package not available "
               "-- its functionality will not be there")
