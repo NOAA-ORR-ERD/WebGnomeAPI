@@ -1,0 +1,16 @@
+# pytest config
+# [pytest]
+# filterwarnings = [
+# #    "error",
+# #    "ignore::UserWarning",
+#     # note the use of single quote below to denote "raw" strings in TOML
+#     "ignore:Implementing implicit namespace packages:DeprecationWarning",
+# ]
+
+[pytest]
+filterwarnings = [
+#     "error",
+#     "ignore::DeprecationWarning"
+     "ignore:.*pkg_resources.*:UserWarning",
+     "ignore:.*pkg_resources.*:DeprecationWarning"
+     ]

@@ -42,6 +42,10 @@ main = "webgnome_api:main"
 [project.entry-points."paste.server_factory"]
 srv = "webgnome_api:server_factory"
 
+
+[project.scripts]
+gen_gmail_token = "webgnome_api.scripts.gmail_utils:generate_token_cmd"
+
 [tool.setuptools]
 include-package-data = true
 

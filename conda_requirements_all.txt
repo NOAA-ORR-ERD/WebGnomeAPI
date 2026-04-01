@@ -4,15 +4,19 @@
 #
 # build_requirements_file.py
 #
-# on 2025-07-31
+
+# on 2026-03-30
+
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
 #
-# NOTE: the python version is pinned to: 3.13 in the
+
+# NOTE: the python version is pinned to: 3.13.* in the
 # build_requirements_file.py script.
 
-python=3.13
+python=3.13.*
+
 python>=3.10,<3.14
 awesome-slugify
 colander <2
@@ -30,12 +34,14 @@ geopandas
 mapbox_earcut
 pyogrio
 pyproj
-shapely>=2.0.6 # older one broken with numpy2
-gridded >=0.7.2,<0.8
+
+shapely>=2.1.2
+gridded >=0.7.5,<0.8
 pynucos>=3.4.0
-cell_tree2d
-py_gd>=2.3
-adios_db>=1.2.5
+cell_tree2d # should be brought in by gridded ..
+py_gd>=2.3.3
+adios_db>=1.2.7
+
 python>=3.10,<3.14
 extract_model
 netCDF4  
@@ -47,8 +53,10 @@ pandas
 yaml
 siphon
 fiona
-xarray-subset-grid>=0.1.0
+
 python>=3.9,<3.14
+setuptools<81  # need old version for Pyramid and pkg_resources
+
 numpy
 regex
 awesome-slugify
@@ -69,6 +77,10 @@ gevent
 python-socketio
 gevent-websocket
 redis-py=4.6.0
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
 pytest
 webtest>=2.0
 testfixtures

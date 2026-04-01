@@ -24,45 +24,33 @@ from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
                                           WebgnomeNamespace,
                                           GoodsFileNamespace)
 
-from waitress import serve as waitress_serve
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.4"
+__version__ = "1.1.5b1"
 
 logging.basicConfig()
 
-supported_ocean_models = {
-    # 'RTOFS-GLOBAL',
-    'ESPC': 'hycom-forecast-agg',
-    #'GOFS': 'hycom-forecast-agg',
-    'WCOFS': 'ioos-forecast-agg',
-    'NGOFS2_RGRID': 'ioos-forecast-agg',
-    # 'CREOFS': 'coops-forecast-noagg',
-    # 'CREOFS_RGRID': 'ioos-forecast-agg',
-    # 'LMHOFS': 'coops-forecast-noagg',
-    'LMHOFS_RGRID': 'ioos-forecast-agg',
-    'CIOFS': 'ioos-forecast-agg',
-    # 'LSOFS': 'coops-forecast-agg',
-    'LSOFS_RGRID': 'ioos-forecast-agg',
-    'CBOFS': 'ioos-forecast-agg',
-    # 'LEOFS': 'coops-forecast-noagg',
-    'LEOFS_RGRID': 'ioos-forecast-agg',
-    'DBOFS': 'ioos-forecast-agg',
-    # 'LOOFS': 'coops-forecast-agg',
-    'LOOFS_RGRID': 'ioos-forecast-agg',
-    # 'SFBOFS': 'coops-forecast-noagg',
-    'SFBOFS_RGRID': 'ioos-forecast-agg',
-    'TBOFS': 'ioos-forecast-agg',
-    # 'NYOFS': 'coops-forecast-agg', #this one has missing time steps
-    'GOMOFS': 'ioos-forecast-agg',
-}
+supported_ocean_models = ['ESPC',
+                          'TAMU',
+                          ]
+coops_models = [
+    'WCOFS',
+    'NGOFS2',
+    'LMHOFS',
+    'LSOFS',
+    'LOOFS',
+    'LEOFS',
+    'CIOFS',
+    'CBOFS',
+    'DBOFS',
+    'SFBOFS',
+    'TBOFS',
+    'GOMOFS',
+    'SSCOFS',
+]
 
-supported_met_models = {'GFS_1_4DEG': ['ucar-forecast-agg', ],
-                        'GFS_1_2DEG': ['ucar-forecast-agg', ],
-                        # 'GFS_1DEG': ['ucar-forecast-agg', ]
-                        }
-
+supported_met_models = ['GFS']
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -105,24 +93,28 @@ def reconcile_directory_settings(settings):
 
     for d in (save_file_dir,):
         if not os.path.exists(d):
-            print(('Creating folder {0}'.format(d)))
+            print(f'Creating folder {d}')
             os.mkdir(d)
         elif not os.path.isdir(d):
-            raise EnvironmentError('Folder path {0} '
-                                   'is not a directory!!'.format(d))
+            raise EnvironmentError(f'Folder path {d} is not a directory!!')
 
     locations_dir = settings['locations_dir']
 
     if not os.path.exists(locations_dir):
-        raise EnvironmentError('Location files folder path {0} '
-                               'does not exist!!'.format(locations_dir))
+        raise EnvironmentError(
+            f'Location files folder path {locations_dir} does not exist!!'
+        )
 
     if not os.path.isdir(locations_dir):
-        raise EnvironmentError('Location files folder path {0} '
-                               'is not a directory!!'.format(locations_dir))
+        raise EnvironmentError(
+            f'Location files folder path {locations_dir} is not a directory!!'
+        )
 
 
 def load_cors_origins(settings, key):
+    """
+    Overload the cors_policy module with the CORS origins from our settings.
+    """
     if key in settings:
         origins = settings[key].split('\n')
         cors_policy['origins'] = origins
@@ -164,6 +156,24 @@ def overload_redis_session_factory(settings, config):
             return session_factory(request, **kwargs)
 
     config.set_session_factory(overloaded_session_factory)
+
+
+def load_oauth_credentials(config):
+    """
+    Load our configuration with the OAuth2 credentials.  Right now it is just
+    a file that is built with the gen_gmail_token command-line tool.
+
+    Note: We will probably want to change this to something safer.
+    """
+    credentials_filename = './oauth_credentials.json'
+
+    try:
+        with open(credentials_filename, encoding="utf-8") as file:
+            credentials = ujson.load(file)
+            config.add_settings(oauth_credentials=credentials)
+    except FileNotFoundError:
+        print('Warning: The OAuth2 credentials file was not found, '
+              'so we will not be able to send e-mail help feedback.')
 
 
 def start_session_cleaner(settings):
@@ -235,6 +245,10 @@ def server_factory(global_config, host, port):
 
 
 def main(global_config, **settings):
+    """
+    Main Pyramid function.  This sets up our server configuration and returns
+    a WSGI app object.
+    """
     settings['package_root'] = os.path.abspath(os.path.dirname(__file__))
     settings['objects'] = {}
     settings['uncertain_models'] = {}
@@ -245,6 +259,20 @@ def main(global_config, **settings):
         # it is ok if the folder already exists.
         if e.errno != 17:
             raise
+    try:
+        archive_dir = settings['local_archive_dir']
+    except KeyError:
+        archive_dir = None
+
+    try:
+        import libgoods
+        if archive_dir is not None and os.path.isdir(archive_dir):
+            libgoods.config.archive_dir = archive_dir
+            supported_ocean_models.extend(coops_models)
+
+    except ImportError:
+        print("libgoods package not available "
+              "-- its functionality will not be there")
 
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
@@ -253,6 +281,8 @@ def main(global_config, **settings):
     config = Configurator(settings=settings)
 
     overload_redis_session_factory(settings, config)
+
+    load_oauth_credentials(config)
 
     # we use ujson to load our JSON payloads
     config.add_request_method(get_json, 'json', reify=True)
