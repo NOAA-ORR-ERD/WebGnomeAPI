@@ -64,12 +64,25 @@ def upload_model(request):
     clean_session_dir(request)
     file_path, _name = process_upload(request, 'new_model')
 
+    max_json_filesize = eval(request.registry.settings.get(
+        'zip_file.max_item_size',
+        '1024 * 1024',  # default
+    ), {}, {})  # Safety: don't reference any global or local variables.
+
+    max_compress_ratio = eval(request.registry.settings.get(
+        'zip_file.max_compression_ratio',
+        '54',  # default
+    ), {}, {})  # Safety: don't reference any global or local variables.
+
     # Now that we have our file, we will now try to load the model into
     # memory.
     # Now that we have our file, is it a zipfile?
-    if not is_savezip_valid(file_path):
-        raise cors_response(request, HTTPBadRequest('Incoming file is not a '
-                                                    'valid zipfile!'))
+    if not is_savezip_valid(file_path,
+                            max_json_filesize=max_json_filesize,
+                            max_compress_ratio=max_compress_ratio):
+        raise cors_response(request, HTTPBadRequest(
+            'Incoming file is not a valid zipfile!'
+        ))
 
     resp_msg = 'OK'
     # now we try to load our model from the zipfile.
@@ -81,8 +94,9 @@ def upload_model(request):
         init_session_objects(request, force=True)
         refs = get_session_objects(request)
 
-        #passing the session_objects in as refs completes object registration for API
-        
+        # passing the session_objects in as refs completes object registration
+        # for API
+
         new_model = Model.load(file_path, refs=refs)
         new_model._cache.enabled = False
 
@@ -116,13 +130,25 @@ def activate_uploaded_model(request):
     '''
     clean_session_dir(request)
 
+    max_json_filesize = eval(request.registry.settings.get(
+        'zip_file.max_item_size',
+        '1024 * 1024',  # default
+    ), {}, {})  # Safety: don't reference any global or local variables.
+
+    max_compress_ratio = eval(request.registry.settings.get(
+        'zip_file.max_compression_ratio',
+        '54',  # default
+    ), {}, {})  # Safety: don't reference any global or local variables.
+
     zipfile_path, _name = activate_uploaded(request)
     log.info('Model zipfile: {}'.format(zipfile_path))
 
     # Now that we have our file, we will now try to load the model into
     # memory.
     # Now that we have our file, is it a zipfile?
-    if not is_savezip_valid(zipfile_path):
+    if not is_savezip_valid(zipfile_path,
+                            max_json_filesize=max_json_filesize,
+                            max_compress_ratio=max_compress_ratio):
         raise cors_response(request, HTTPBadRequest(
             'File is not a valid zipfile!'
         ))
@@ -136,7 +162,8 @@ def activate_uploaded_model(request):
         init_session_objects(request, force=True)
         refs = get_session_objects(request)
 
-        #passing the session_objects in as refs completes object registration for API
+        # passing the session_objects in as refs completes object registration
+        # for API
         new_model = Model.load(zipfile_path, refs=refs)
         new_model._cache.enabled = False
 

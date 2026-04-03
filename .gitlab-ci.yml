@@ -17,8 +17,6 @@ stages:
   - deploy
   - maintenance
 
-
-
 .build_template: &build_definition
   stage: build
   image: docker:dind
@@ -27,7 +25,8 @@ stages:
   before_script:
     - unset DOCKER_AUTH_CONFIG
   script:
-    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
+      ${CI_REGISTRY}
     - >
       docker build \
         --build-arg git_commit_short_hash=${CI_COMMIT_SHORT_SHA} \
@@ -46,9 +45,9 @@ stages:
     reports:
       dotenv: build.env
   tags:
-    - "docker"
-    - "aws"
-    - "us-west-2"
+    - 'docker'
+    - 'aws'
+    - 'us-west-2'
 
 .deploy_template: &deploy_definition
   stage: deploy
@@ -61,11 +60,13 @@ stages:
   script:
     - apk --update --no-cache add bash aws-cli
     # Pull image from GCR using GCR_IMAGE from previous job.
-    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}"
+      "${CI_REGISTRY}"
     - echo "Pulling $GCR_IMAGE"
     - docker pull "$GCR_IMAGE"
     - docker logout "${CI_REGISTRY}"
-    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REPO_URI"
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login
+      --username AWS --password-stdin "$ECR_REPO_URI"
     - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:latest"
     - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
     - echo "Pushing $GCR_IMAGE to ${ECR_REPO_URI}"
@@ -81,34 +82,33 @@ stages:
             --force-new-deployment --debug
       done
   tags:
-    - "docker"
-    - "aws"
-    - "us-west-2"
+    - 'docker'
+    - 'aws'
+    - 'us-west-2'
 
 .dev: &dev_definition
   environment:
     name: dev
     url: https://gnome-dev.nos-orr.net
   variables:
-      API_URL: https://gnome-dev.nos-orr.net
-      TARGET_ENV: dev
+    API_URL: https://gnome-dev.nos-orr.net
+    TARGET_ENV: dev
   rules:
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
-    when: never
-  - if: $CI_COMMIT_BRANCH == "fargate-migration"
-
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
+      when: never
+    - if: $CI_COMMIT_BRANCH == "fargate-migration"
 
 .prod: &prod_definition
   environment:
     name: prod
     url: https://gnome.orr.noaa.gov
   variables:
-      API_URL: https://gnome.orr.noaa.gov
-      TARGET_ENV: prod
+    API_URL: https://gnome.orr.noaa.gov
+    TARGET_ENV: prod
   rules:
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event"  # Skip for merge requests
-    when: never
-  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 Development Build Docker Image:
   <<: *build_definition

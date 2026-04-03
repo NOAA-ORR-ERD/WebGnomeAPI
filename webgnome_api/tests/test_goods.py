@@ -25,7 +25,6 @@ except ModuleNotFoundError:
 
 
 @pytest.mark.skipif(not LIBGOODS, reason="libgoods not there, not testing map access")
-# @pytest.mark.skip('need to make this optional when GOODS is down')
 class GetMapTest(FunctionalTestBase):
     '''
     Tests of getting a map from the GOODS API
@@ -85,7 +84,6 @@ class GetMapTest(FunctionalTestBase):
             # maybe check creation time, or ???
 
 @pytest.mark.skipif(not LIBGOODS, reason="libgoods not there, not testing map access")
-# @pytest.mark.skip('need to make this optional when GOODS is down')
 class GetNWS_WindsTest(FunctionalTestBase):
     '''
     Tests of getting NWS winds from the libGOODS API
@@ -96,29 +94,29 @@ class GetNWS_WindsTest(FunctionalTestBase):
     def test_get_NWSwinds(self):
         """
         """
-        
+
         req_params = {
               'longitude': '-124.8',
               'latitude': '48',
               }
 
         resp = self.testapp.get('/goods/nws', req_params)
-        
+
         assert 'timeseries' in resp.json_body
 
     def test_get_NWSwinds_badlocation(self):
         """
         """
-        
+
         req_params = {
               'longitude': '0',
               'latitude': '0',
               }
-        
+
         with self.assertRaises(webtest.app.AppError) as err:
             resp = self.testapp.get('/goods/nws', req_params)
-        
-        
+
+
 @pytest.mark.skip("not functional right now")
 class GetCurrentsTest(FunctionalTestBase):
     '''
@@ -170,39 +168,140 @@ class GetCurrentsTest(FunctionalTestBase):
         assert expected_path.stat().st_size > 0
 
 
-@pytest.mark.skip("not functional right now")
 class ListModels(FunctionalTestBase):
-    '''
-    Tests of getting a netcdf file of currents from the webgnomeAPI
+    """
+    Tests of getting a the model list
 
-    via the libgoods system
+    Parameters used:
 
-    There should probably be tests of various failing conditions.
-    '''
+    Query for full list:
 
-    def test_list_models(self):
+map_bounds : [[-360,-85.06],[-360,85.06],[360,85.06],[360,-85.06]]
+request_type : ["surface currents"]
+1000172761182708.2&map_bounds=%5B%5B-360%2C-85.06%5D%2C%5B-360%2C85.06%5D%2C%5B360%2C85.06%5D%2C%5B360%2C-85.06%5D%5D&request_type=%5B%22surface%20currents%22%5D
+
+map_bounds
+[[-360,-85.06],[-360,85.06],[360,85.06],[360,-85.06]]
+request_type
+["surface winds"]
+5542233458021734&map_bounds=%5B%5B-360%2C-85.06%5D%2C%5B-360%2C85.06%5D%2C%5B360%2C85.06%5D%2C%5B360%2C-85.06%5D%5D&request_type=%5B%22surface%20winds%22%5D
+
+One model (LEOFS):
+    list_models
+    model_id: LEOFS
+    model_id=LEOFS
+
+model_id: GFS
+model_id=GFS
+"""
+
+    # @pytest.mark.parametrize("request_type, bounds", [('["surface currents"]', "[[-360, -85.06], [-360, 85.06], [360, 85.06], [360, -85.06]]"),])
+    def test_list_models_surface_currents(self):
         """
         tests getting the metadata of the models
+
+        Only:
+         - for surface currents
+         - for global map_bounds
         """
         # This is what the current request looks like
         # it's passing it on through to GOODS
         # the request should be updated with our "new" API
 
-        # should there be some parameters to the request?
-        resp = self.testapp.get('/goods/list_models')
+        # bounds used for global.
+        bounds = "[[-360, -85.06], [-360, 85.06], [360, 85.06], [360, -85.06]]"
+        request_type = '["surface currents"]'
+        req_params = {
+                'map_bounds': bounds,
+                'request_type': request_type,
+                }
+        resp = self.testapp.get('/goods/list_models',
+                                req_params)
 
         resp = resp.json_body
 
-        print(resp)
         # should we hard-code what's expected
-        assert len(resp) > 0
+        print(f"Got {len(resp)} models")
+        assert len(resp) > 0, "got zero models!"
 
+        all_expected_keys = {
+            'identifier', 'name', 'long_name', 'html_desc', 'regional', 'bounding_box',
+            'bounding_poly', 'example_bbox', 'env_params', 'start', 'end', 'actual_start', 'actual_end'
+        }
         # just checking that we got what looks like the right dicts.
         for model in resp:
-            assert 'identifier' in model
-            assert 'name' in model
-            assert 'bounding_box' in model
-            assert 'bounding_poly' in model
+            assert all_expected_keys.issubset(model.keys())
+
+    def test_list_models_surface_winds(self):
+        """
+        tests getting the metadata of the models
+
+        Only:
+         - for surface currents
+         - for global map_bounds
+        """
+        # This is what the current request looks like
+        # it's passing it on through to GOODS
+        # the request should be updated with our "new" API
+
+        # bounds used for global.
+        bounds = "[[-360, -85.06], [-360, 85.06], [360, 85.06], [360, -85.06]]"
+        request_type = '["surface winds"]'
+        req_params = {
+                'map_bounds': bounds,
+                'request_type': request_type,
+                }
+        resp = self.testapp.get('/goods/list_models',
+                                req_params)
+
+        resp = resp.json_body
+        print(resp)
+        # should we hard-code what's expected?
+        # as of this test, only one global wind model
+        print(f"Got {len(resp)} models")
+        assert len(resp) >= 1
+
+        model = resp[0]
+
+        print(f"got: {model['name']}")
+        assert model['identifier'] == 'GFS'
+
+        print(f"{model['actual_start']=}")
+        print(f"{model['actual_end']=}")
+
+        all_expected_keys = {
+            'identifier', 'name', 'long_name', 'html_desc', 'regional', 'bounding_box',
+            'bounding_poly', 'example_bbox', 'env_params', 'start', 'end', 'actual_start', 'actual_end'
+        }
+        # just checking that we got what looks like the right dicts.
+        for model in resp:
+            assert all_expected_keys.issubset(model.keys())
+
+    def test_list_models_one_model(self):
+        """
+        list_models is overloaded to return just one model
+        if you pass in its ID
+        """
+        model_id = 'CBOFS'
+        req_params = {
+                'model_id': model_id
+                }
+        resp = self.testapp.get('/goods/list_models',
+                                req_params)
+
+        meta = resp.json_body
+
+        assert meta['identifier'] == model_id
+
+        all_expected_keys = {
+            'identifier', 'name', 'long_name', 'html_desc', 'regional', 'bounding_box',
+            'bounding_poly', 'example_bbox', 'env_params', 'start', 'end', 'actual_start', 'actual_end'
+        }
+        assert all_expected_keys.issubset(meta.keys())
+
+        # actual start and actual end should be populated
+        assert meta['actual_start']
+        assert meta['actual_end']
 
 
 

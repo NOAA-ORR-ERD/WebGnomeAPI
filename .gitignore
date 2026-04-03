@@ -1,6 +1,8 @@
 # webgnome_api specific
 dump.rdb
 
+goods_list_models_log.txt
+
 # general stuff:
 .DS_Store
 
