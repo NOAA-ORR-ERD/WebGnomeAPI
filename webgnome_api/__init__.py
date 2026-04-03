@@ -33,22 +33,22 @@ logging.basicConfig()
 
 supported_ocean_models = ['ESPC',
                           'TAMU',
+                          'WCOFS',
+                          'CIOFS',
+                          'CBOFS',
+                          'DBOFS',
+                          'TBOFS',
+                          'GOMOFS',
                           ]
-coops_models = [
-    'WCOFS',
-    'NGOFS2',
-    'LMHOFS',
-    'LSOFS',
-    'LOOFS',
-    'LEOFS',
-    'CIOFS',
-    'CBOFS',
-    'DBOFS',
-    'SFBOFS',
-    'TBOFS',
-    'GOMOFS',
-    'SSCOFS',
-]
+
+local_access_only = ['NGOFS2',
+                     'LMHOFS',
+                     'LSOFS',
+                     'LOOFS',
+                     'LEOFS',
+                     'SFBOFS',
+                     'SSCOFS',
+                     ]
 
 supported_met_models = ['GFS']
 
@@ -268,7 +268,7 @@ def main(global_config, **settings):
         import libgoods
         if archive_dir is not None and os.path.isdir(archive_dir):
             libgoods.config.archive_dir = archive_dir
-            supported_ocean_models.extend(coops_models)
+            supported_ocean_models.extend(local_access_only)
 
     except ImportError:
         print("libgoods package not available "
