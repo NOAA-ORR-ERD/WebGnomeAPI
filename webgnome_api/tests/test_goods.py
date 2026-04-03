@@ -94,29 +94,29 @@ class GetNWS_WindsTest(FunctionalTestBase):
     def test_get_NWSwinds(self):
         """
         """
-        
+
         req_params = {
               'longitude': '-124.8',
               'latitude': '48',
               }
 
         resp = self.testapp.get('/goods/nws', req_params)
-        
+
         assert 'timeseries' in resp.json_body
 
     def test_get_NWSwinds_badlocation(self):
         """
         """
-        
+
         req_params = {
               'longitude': '0',
               'latitude': '0',
               }
-        
+
         with self.assertRaises(webtest.app.AppError) as err:
             resp = self.testapp.get('/goods/nws', req_params)
-        
-        
+
+
 @pytest.mark.skip("not functional right now")
 class GetCurrentsTest(FunctionalTestBase):
     '''
@@ -255,7 +255,7 @@ model_id=GFS
                                 req_params)
 
         resp = resp.json_body
-
+        print(resp)
         # should we hard-code what's expected?
         # as of this test, only one global wind model
         print(f"Got {len(resp)} models")
@@ -263,7 +263,7 @@ model_id=GFS
 
         model = resp[0]
 
-        print(f'got: {model['name']}')
+        print(f"got: {model['name']}")
         assert model['identifier'] == 'GFS'
 
         print(f"{model['actual_start']=}")

@@ -562,7 +562,7 @@ class GOODSRequest(object):
         if self.state != 'preparing':
             msg = (f'Subset operation {self.request_id} '
                    'already started or completed')
-            self.write_log(msg, 'error', 'main')
+            logger.error(msg, 'error', 'main')
             return msg
         self.state = 'subsetting'
         self._subset_finished = False
