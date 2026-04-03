@@ -32,24 +32,25 @@ __version__ = "1.1.5b1"
 logging.basicConfig()
 
 supported_ocean_models = ['ESPC',
-                          'WCOFS',
-                          'NGOFS2',
-                          'LMHOFS',
-                          'LSOFS',
-                          'LOOFS',
-                          'LEOFS',
-                          'CIOFS',
-                          'CBOFS',
-                          'DBOFS',
-                          'SFBOFS',
-                          'TBOFS',
-                          'GOMOFS',
-                          'SSCOFS',
                           'TAMU',
                           ]
+coops_models = [
+    'WCOFS',
+    'NGOFS2',
+    'LMHOFS',
+    'LSOFS',
+    'LOOFS',
+    'LEOFS',
+    'CIOFS',
+    'CBOFS',
+    'DBOFS',
+    'SFBOFS',
+    'TBOFS',
+    'GOMOFS',
+    'SSCOFS',
+]
 
 supported_met_models = ['GFS']
-
 
 class WebgnomeFormatter(Formatter):
     def format(self, record):
@@ -161,7 +162,6 @@ def load_oauth_credentials(config):
     """
     Load our configuration with the OAuth2 credentials.  Right now it is just
     a file that is built with the gen_gmail_token command-line tool.
-    
     Note: We will probably want to change this to something safer.
     """
     credentials_filename = './oauth_credentials.json'
@@ -267,6 +267,8 @@ def main(global_config, **settings):
         import libgoods
         if archive_dir is not None and os.path.isdir(archive_dir):
             libgoods.config.archive_dir = archive_dir
+            supported_ocean_models.extend(coops_models)
+
     except ImportError:
         print("libgoods package not available "
               "-- its functionality will not be there")
