@@ -575,7 +575,6 @@ class GOODSRequest(object):
         #         self.orig_request.config.local_archive_dir is not None):
         #     raise EnvironmentError('libgoods archive directory not set '
         #                            '(main thread)')
-
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -662,13 +661,16 @@ class GOODSRequest(object):
             return
         self.state = 'requesting'
         #STEP 2: use api.get_model_output to retrieve subset data to self.outpath
-        self.request_process = Process(target=api.get_model_output,
-                                       args=(self._subset_xr, self.outpath))
-        self.request_process.start()
-        self.request_process.join(600)  # 10 minute request timeout
-        if self.request_process.exitcode:
-            logger.info('REQUEST FAILED: '
-                        f'exitcode: {self.request_process.exitcode}')
+        if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
+            self.request_process = Process(target=api.get_model_output,
+                                        args=(self._subset_xr, self.outpath))
+            self.request_process.start()
+            self.request_process.join(int(self.orig_request.registry.settings.get('goods_subprocess_timeout', 60)))  #request timeout
+            if self.request_process.exitcode:
+                logger.info('REQUEST FAILED: '
+                            f'exitcode: {self.request_process.exitcode}')
+        else:
+            api.get_model_output(self._subset_xr, self.outpath)
         logger.info('REQUEST COMPLETE')
         if self.cancel_event.is_set():
             self.message = 'Cancelled'

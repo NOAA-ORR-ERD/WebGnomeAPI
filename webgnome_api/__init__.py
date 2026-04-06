@@ -260,7 +260,7 @@ def main(global_config, **settings):
         if e.errno != 17:
             raise
     try:
-        archive_dir = settings['local_archive_dir']
+        archive_dir = os.path.abspath(settings['local_archive_dir'])
     except KeyError:
         archive_dir = None
 
