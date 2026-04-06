@@ -627,6 +627,8 @@ class GOODSRequest(object):
             result = mq.get(timeout=60)
             self.subset_process.join()
         else:
+            request_args.pop('libgoods_archive', None)
+            result = api.get_model_subset(**request_args)
             api.get_model_output(self._subset_xr, self.outpath)
         logger.info('RESULT: {}'.format(repr(result)))
 
