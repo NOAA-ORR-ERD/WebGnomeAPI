@@ -84,6 +84,7 @@ class GetMapTest(FunctionalTestBase):
             # maybe check creation time, or ???
 
 @pytest.mark.skipif(not LIBGOODS, reason="libgoods not there, not testing map access")
+@pytest.mark.skip("Not dependable due to access of external resource")
 class GetNWS_WindsTest(FunctionalTestBase):
     '''
     Tests of getting NWS winds from the libGOODS API
