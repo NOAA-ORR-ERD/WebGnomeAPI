@@ -635,14 +635,14 @@ class GOODSRequest(object):
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
-        if self.subset_process.exitcode is None and counter >= timeout:
+        if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
             # process still running, so timeout exceeded
             logger.error(f'Failed subset for {request_args["request_id"]} '
                          'due to timeout')
             self.error('subset_timeout')
             self.cancel_request()
             return
-        elif self.subset_process.exitcode or status == 'error':
+        elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode or status == 'error'):
             logger.info('SUBSET FAILED: '
                         f'exitcode: {self.subset_process.exitcode}')
             self.error(result)
