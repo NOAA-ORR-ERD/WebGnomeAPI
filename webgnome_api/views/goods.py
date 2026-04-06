@@ -661,8 +661,9 @@ class GOODSRequest(object):
         self._subset_finished = True
         self.percent = 0
         self.subset_size = self._subset_xr.ds.nbytes
-        if self.subset_size > self._max_size:
-            self.too_large()
+        # Needs further development in the client before we can add this back in.
+        # if self.subset_size > self._max_size:
+        #     self.too_large()
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
@@ -693,7 +694,7 @@ class GOODSRequest(object):
         # logger.close()
 
     def too_large(self):
-        size = self._subset_xr.nbytes
+        size = self._subset_xr.ds.nbytes
         self.state = 'too_large'
         self.message = (f'Subset size is very large ({size}). '
                         'Reconfirm required.')
