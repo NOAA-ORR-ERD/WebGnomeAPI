@@ -590,7 +590,7 @@ class GOODSRequest(object):
         logger.info('START')
         #STEP 1: Subset process to query libgoods for model subset
         status = result = None
-        if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
+        if (self.orig_request.registry.settings.get('goods_use_subprocess_subset', 'true') == 'true'):
             # use a subprocess
             self.subset_process = Process(target=subset_process_func,
                                         args=(request_args, mq),
