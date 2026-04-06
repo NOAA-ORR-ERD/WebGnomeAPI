@@ -27,7 +27,7 @@ from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.6dev"
+__version__ = "1.1.5"
 
 logging.basicConfig()
 
@@ -260,7 +260,7 @@ def main(global_config, **settings):
         if e.errno != 17:
             raise
     try:
-        archive_dir = settings['local_archive_dir']
+        archive_dir = os.path.abspath(settings['local_archive_dir'])
     except KeyError:
         archive_dir = None
 
