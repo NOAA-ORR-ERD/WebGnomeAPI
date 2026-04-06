@@ -625,11 +625,11 @@ class GOODSRequest(object):
             status = msg
             logger.info('Joining subset process')
             result = mq.get(timeout=60)
+            status = 'success'
             self.subset_process.join()
         else:
             request_args.pop('libgoods_archive', None)
             result = api.get_model_subset(**request_args)
-            api.get_model_output(self._subset_xr, self.outpath)
         logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
