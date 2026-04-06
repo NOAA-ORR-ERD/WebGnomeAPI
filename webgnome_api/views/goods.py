@@ -665,7 +665,7 @@ class GOODSRequest(object):
         self.request_process = Process(target=api.get_model_output,
                                        args=(self._subset_xr, self.outpath))
         self.request_process.start()
-        self.request_process.join(600)  # 10 minute request timeout
+        self.request_process.join(120)  # 2 minute request timeout
         if self.request_process.exitcode:
             logger.info('REQUEST FAILED: '
                         f'exitcode: {self.request_process.exitcode}')
