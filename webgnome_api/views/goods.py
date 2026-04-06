@@ -596,9 +596,13 @@ class GOODSRequest(object):
                                         args=(request_args, mq),
                                         daemon=True)
             self.subset_process.start()
-            if (not mq.get(timeout=30)):
-                self.error('Subset startup failed')
-                self.cancel_request()
+            try:
+                mq.get(timeout=30)  # startup timeout
+            except queue.Empty:
+                logger.error('Subset process startup failed due to timeout on process creation {0}'.format(
+                    self.request_id))
+                self.error('subset_timeout')
+                self.cancel_request() # Still breaks here, need more time to sort it out.
                 return
             msg = '0 sec'
             counter = 0
@@ -721,7 +725,7 @@ class GOODSRequest(object):
             self.request_process.terminate()
         if self.request_thread:
             try:
-                self.request_thread.join(timeout=1)
+                self.request_thread.join(timeout=3)
             except Exception as e:
                 self.logger.error('Request thread join error: ' + repr(e))
                 raise
