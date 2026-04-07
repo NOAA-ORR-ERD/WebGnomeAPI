@@ -575,7 +575,6 @@ class GOODSRequest(object):
         #         self.orig_request.config.local_archive_dir is not None):
         #     raise EnvironmentError('libgoods archive directory not set '
         #                            '(main thread)')
-
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
             args=(self.request_args, logger, message_queue),
@@ -590,57 +589,69 @@ class GOODSRequest(object):
                                    '(worker thread)')
         logger.info('START')
         #STEP 1: Subset process to query libgoods for model subset
-        self.subset_process = Process(target=subset_process_func,
-                                      args=(request_args, mq),
-                                      daemon=True)
-        self.subset_process.start()
-        if (not mq.get(timeout=30)):
-            self.error('Subset startup failed')
-            self.cancel_request()
-            return
-        msg = '0 sec'
-        counter = 0
-        timeout = 180
-        while counter < timeout:  # 3 minutes until loop times out
-            logger.info('SUBSET PROGESS: ' + str(counter))
+        status = result = None
+        if (self.orig_request.registry.settings.get('goods_use_subprocess_subset', 'true') == 'true'):
+            # use a subprocess
+            self.subset_process = Process(target=subset_process_func,
+                                        args=(request_args, mq),
+                                        daemon=True)
+            self.subset_process.start()
             try:
-                msg = mq.get(timeout=2)
-                counter += 2
-                if msg == 'success' or msg == 'error':
-                    logger.info('leaving progress loop via break')
-                    logger.info('Message: {0}'.format(msg))
-                    break
-                else:
-                    if msg:
+                mq.get(timeout=30)  # startup timeout
+            except queue.Empty:
+                logger.error('Subset process startup failed due to timeout on process creation {0}'.format(
+                    self.request_id))
+                self.error('subset_timeout')
+                self.cancel_request() # Still breaks here, need more time to sort it out.
+                return
+            msg = '0 sec'
+            counter = 0
+            timeout = 180
+            while counter < timeout:  # 3 minutes until loop times out
+                logger.info('SUBSET PROGESS: ' + str(counter))
+                try:
+                    msg = mq.get(timeout=2)
+                    counter += 2
+                    if msg == 'success' or msg == 'error':
+                        logger.info('leaving progress loop via break')
                         logger.info('Message: {0}'.format(msg))
-                    while not mq.empty():
-                        msg = mq.get()
+                        break
+                    else:
                         if msg:
                             logger.info('Message: {0}'.format(msg))
-                    self.time_elapsed = counter
-            except queue.Empty:
-                pass
-        status = msg
-        logger.info('Joining subset process')
-        result = mq.get(timeout=60)
-        self.subset_process.join()
+                        while not mq.empty():
+                            msg = mq.get()
+                            if msg:
+                                logger.info('Message: {0}'.format(msg))
+                        self.time_elapsed = counter
+                except queue.Empty:
+                    pass
+            status = msg
+            logger.info('Joining subset process')
+            result = mq.get(timeout=60)
+            self.subset_process.join()
+        else:
+            request_args.pop('libgoods_archive', None)
+            result = api.get_model_subset(**request_args)
+            status = 'success'
         logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
-        if self.subset_process.exitcode is None and counter >= timeout:
+        if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
             # process still running, so timeout exceeded
             logger.error(f'Failed subset for {request_args["request_id"]} '
                          'due to timeout')
             self.error('subset_timeout')
             self.cancel_request()
             return
-        elif self.subset_process.exitcode or status == 'error':
+        elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode or status == 'error'):
             logger.info('SUBSET FAILED: '
                         f'exitcode: {self.subset_process.exitcode}')
             self.error(result)
             return
+        
         if status:
             #SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
@@ -654,21 +665,25 @@ class GOODSRequest(object):
         self._subset_finished = True
         self.percent = 0
         self.subset_size = self._subset_xr.ds.nbytes
-        if self.subset_size > self._max_size:
-            self.too_large()
+        # Needs further development in the client before we can add this back in.
+        # if self.subset_size > self._max_size:
+        #     self.too_large()
 
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
             return
         self.state = 'requesting'
         #STEP 2: use api.get_model_output to retrieve subset data to self.outpath
-        self.request_process = Process(target=api.get_model_output,
-                                       args=(self._subset_xr, self.outpath))
-        self.request_process.start()
-        self.request_process.join(600)  # 10 minute request timeout
-        if self.request_process.exitcode:
-            logger.info('REQUEST FAILED: '
-                        f'exitcode: {self.request_process.exitcode}')
+        if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
+            self.request_process = Process(target=api.get_model_output,
+                                        args=(self._subset_xr, self.outpath))
+            self.request_process.start()
+            self.request_process.join(int(self.orig_request.registry.settings.get('goods_subprocess_timeout', 60)))  #request timeout
+            if self.request_process.exitcode:
+                logger.info('REQUEST FAILED: '
+                            f'exitcode: {self.request_process.exitcode}')
+        else:
+            api.get_model_output(self._subset_xr, self.outpath)
         logger.info('REQUEST COMPLETE')
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
@@ -683,7 +698,7 @@ class GOODSRequest(object):
         # logger.close()
 
     def too_large(self):
-        size = self._subset_xr.nbytes
+        size = self._subset_xr.ds.nbytes
         self.state = 'too_large'
         self.message = (f'Subset size is very large ({size}). '
                         'Reconfirm required.')
@@ -710,7 +725,7 @@ class GOODSRequest(object):
             self.request_process.terminate()
         if self.request_thread:
             try:
-                self.request_thread.join(timeout=1)
+                self.request_thread.join(timeout=3)
             except Exception as e:
                 self.logger.error('Request thread join error: ' + repr(e))
                 raise
