@@ -47,7 +47,6 @@ test_src:
       when: never
   tags:
     - docker
-    - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
   before_script:
     - apt-get install -y curl unzip
@@ -131,7 +130,6 @@ test_img:
     - schedules
   tags:
     - docker
-    - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
     entrypoint: [""]
