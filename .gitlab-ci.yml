@@ -143,6 +143,7 @@ test_img:
 
 rename_temp_img:
   stage: rename_temp_img
+  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new
   only:
     - develop
     - main
