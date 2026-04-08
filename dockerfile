@@ -9,8 +9,8 @@ ARG PYTHON_VER
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y redis
-RUN apt-get install -y git-lfs
-RUN git lfs install
+# RUN apt-get install -y git-lfs
+# RUN git lfs install
 
 COPY ./ /webgnomeapi/
 WORKDIR /webgnomeapi/
@@ -20,7 +20,7 @@ RUN conda install -y python=$PYTHON_VER \
         --file libgoods/conda_requirements.txt \
         --file /pygnome/py_gnome/conda_requirements.txt
 
-RUN cd libgoods && git lfs pull
+# RUN cd libgoods && git lfs pull
 RUN cd libgoods && python -m pip install ./
 
 # add the environment file so the api can serve it up
