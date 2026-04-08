@@ -105,8 +105,13 @@ build_temp_img:
   before_script:
     - unset DOCKER_AUTH_CONFIG
   script:
+    - echo "cloning libgoods"
+
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+
+    - echo "contents of shoreline"
+    - ls -l libgoods/src/libgoods/shoreline_data/gshhg/
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
 
