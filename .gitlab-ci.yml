@@ -113,7 +113,7 @@ build_temp_img:
     - echo "contents of shoreline"
     - du -h -d1 ./libgoods/src/libgoods/shoreline_data
     - cd ./libgoods
-    - git lfs pull
+    # - git lfs pull
     - cd ..
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
