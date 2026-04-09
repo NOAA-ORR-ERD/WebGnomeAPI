@@ -99,7 +99,7 @@ build_temp_img:
   except:
     - pipelines
     - schedules
-  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new
+  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new:1.0.4
   tags:
     - docker
   before_script:
@@ -150,7 +150,7 @@ test_img:
 
 rename_temp_img:
   stage: rename_temp_img
-  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new
+  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new:1.0.4
   only:
     - develop
     - main
