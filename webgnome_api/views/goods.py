@@ -441,16 +441,14 @@ def get_goods_requests(request):
         rv = [r.to_response() for r in open_requests]
 
     for _idx, r in enumerate(open_requests):
-        try:  # this 'cause if we're not using multiprocessing, r.subset_process isn't there.
+        if r.subset_process is not None:
             log.info('>>>>>'
                      f'Req {r.request_id} '
                      f'subset {r.subset_process.is_alive()}')
-        except Exception as exp:
-            log.info(">>>>>"
-                     "Wasn't able to log:"
+        else:
+            log.info('>>>>>'
                      f'Req {r.request_id} '
-                     f'{exp}'
-                     )
+                     f'No subset subprocess')
 
     return rv
 
@@ -582,10 +580,12 @@ class GOODSRequest(object):
             raise EnvironmentError('libgoods archive directory not set '
                                    '(worker thread)')
         logger.info('START')
-        #STEP 1: Subset process to query libgoods for model subset
+        # STEP 1: Subset process to query libgoods for model subset
         status = result = None
         if (self.orig_request.registry.settings.get('goods_use_subprocess_subset', 'true') == 'true'):
             # use a subprocess
+            # self.outpath so that the subprocess also writes the file
+            #  - a bit of a hack, shold be rethought?
             self.subset_process = Process(target=subset_process_func,
                                           args=(request_args, mq, self.outpath),
                                           daemon=True)
@@ -624,11 +624,14 @@ class GOODSRequest(object):
             logger.info('Joining subset process')
             result = mq.get(timeout=60)
             self.subset_process.join()
-        else:
+        else: # not using a subprocess for the subsetting, etc.
+            # this is barely untested ...
+            # might be better to call subset_process_func() (with dummpy mq)
+            # that that the code stays in sync.
             request_args.pop('libgoods_archive', None)
             result = api.get_model_subset(**request_args)
+            result.write_nc(outpath)
             status = 'success'
-            mq.join_thread()
         logger.info('RESULT: {}'.format(repr(result)))
 
         if self.cancel_event.is_set():
@@ -648,7 +651,7 @@ class GOODSRequest(object):
             return
         
         if status:
-            #SUBSET SUCCESSFUL
+            # SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
             self._subset_xr = result
@@ -658,7 +661,12 @@ class GOODSRequest(object):
             self.error(result)
 
         self._subset_finished = True
+        # Fixme: it seems to be either zero here or 100 later -- is there any chance we'll know
+        #   what percent it is?
         self.percent = 0
+        # We really need to rethink this step
+        #   probably a libgoods `estimate_subset_size` method
+        # but still capturing, 'cause maybe it'll get use / reported somewhere
         self.subset_size = self._subset_xr.ds.nbytes
         # Needs further development in the client before we can add this back in.
         # if self.subset_size > self._max_size:
@@ -812,7 +820,7 @@ class Tracker(Callback):
             self.model.elapsed = elapsed
 
 
-def subset_process_func(request_args, mq, outpath=None):
+def subset_process_func(request_args, mq, outpath):
     mq.put('startup')  # startup sync message
 
     # Fixme: couldn't all this figure out the archive stuff be done ahead of time?
