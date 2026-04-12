@@ -6,6 +6,8 @@
 set -e
 set -x
 
+LOCAL_DIR="${1:?Usage: aws-mirror-matrix.sh <local-destination-dir>}"
+
 MODEL=${MODEL:="cbofs"}
 PATTERN=${PATTERN:="fields"}
 CAST=${CAST:=".n"}
@@ -48,7 +50,7 @@ for CURRENT_DATE in "${DATE_LIST[@]}"; do
     echo "Starting sync for date pattern: $CURRENT_DATE"
     echo "=========================================================="
 
-    aws s3 sync s3://noaa-nos-ofs-pds/$MODEL $GNOME_S3_BUCKET/$MODEL \
+    aws s3 sync s3://noaa-nos-ofs-pds/$MODEL "$LOCAL_DIR/$MODEL" \
         --no-sign-request \
         --size-only \
         --exclude "*" \
