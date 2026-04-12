@@ -207,11 +207,15 @@ def start_session_cleaner(settings):
         So we need to hook directly into the Redis publish/subscribe
         functionality.  Here we will look for expired key events.
     '''
-    host = settings.get('redis.sessions.host', 'localhost')
-    port = int(settings.get('redis.sessions.port', 6379))
     session_dir = settings.get('session_dir', './models/session')
 
-    redis = StrictRedis(host=host, port=port)
+    cache_uri = os.environ.get('CACHE_URI')
+    if cache_uri:
+        redis = StrictRedis.from_url(cache_uri)
+    else:
+        host = settings.get('redis.sessions.host', 'localhost')
+        port = int(settings.get('redis.sessions.port', 6379))
+        redis = StrictRedis(host=host, port=port)
 
     def event_handler(msg, session_dir=session_dir):
         session_id = msg['data']
