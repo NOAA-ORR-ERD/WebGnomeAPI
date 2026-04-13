@@ -30,6 +30,7 @@ from geventwebsocket.handler import WebSocketHandler
 __version__ = "1.1.5b1"
 
 logging.basicConfig()
+log = logging.getLogger(__name__)
 
 supported_ocean_models = ['ESPC',
                           'TAMU',
@@ -240,6 +241,30 @@ def start_session_cleaner(settings):
                                                            daemon=True)
 
 
+def configure_redis_keyspace_notifications(settings):
+    """
+    Best-effort Redis config so expired-session key events are emitted.
+    Some managed Redis providers block CONFIG commands; do not fail startup.
+    """
+    cache_uri = os.environ.get('CACHE_URI')
+    redis_conn_kwargs = {
+        'socket_connect_timeout': 3,
+        'socket_timeout': 3
+    }
+
+    try:
+        if cache_uri:
+            redis = StrictRedis.from_url(cache_uri, **redis_conn_kwargs)
+        else:
+            host = settings.get('redis.sessions.host', 'localhost')
+            port = int(settings.get('redis.sessions.port', 6379))
+            redis = StrictRedis(host=host, port=port, **redis_conn_kwargs)
+
+        redis.config_set("notify-keyspace-events", "Ex")
+    except Exception as exc:
+        log.warning('Could not set Redis notify-keyspace-events=Ex: %s', exc)
+
+
 def server_factory(global_config, host, port):
     port = int(port)
 
@@ -304,6 +329,7 @@ def main(global_config, **settings):
     parse_redis_uri(settings)
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
+    configure_redis_keyspace_notifications(settings)
     start_session_cleaner(settings)
 
     config = Configurator(settings=settings)

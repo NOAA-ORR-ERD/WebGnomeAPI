@@ -20,8 +20,6 @@ def get_info(request):
         session = request.session
         log.info(f'session: {session}, id: {session.session_id}')
 
-        session.redis.config_set("notify-keyspace-events", "Ex")
-
         if isinstance(session.session_id, LazyCreateSession):
             session.ensure_id()
             session['active_model'] = {}
