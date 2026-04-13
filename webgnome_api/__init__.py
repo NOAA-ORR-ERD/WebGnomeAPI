@@ -92,7 +92,8 @@ class DummySession(object):
 def parse_redis_uri(settings):
     """
     Parse CACHE_URI environment variable and update settings.
-    CACHE_URI format: rediss://hostname:port or redis://hostname:port
+    CACHE_URI format: rediss://[:password@]hostname:port[/db] or
+    redis://[:password@]hostname:port[/db]
     Falls back to existing settings if CACHE_URI is not present.
     """
     redis_uri = os.environ.get('CACHE_URI')
@@ -101,6 +102,10 @@ def parse_redis_uri(settings):
             from urllib.parse import urlparse
             parsed = urlparse(redis_uri)
 
+            # Prefer passing a full URI through to pyramid_session_redis so
+            # auth/tls/db details are preserved in deployed environments.
+            settings['redis.sessions.url'] = redis_uri
+
             if parsed.hostname:
                 settings['redis.sessions.host'] = parsed.hostname
                 print(f'Using Redis host from CACHE_URI: {parsed.hostname}')
@@ -108,6 +113,24 @@ def parse_redis_uri(settings):
             if parsed.port:
                 settings['redis.sessions.port'] = str(parsed.port)
                 print(f'Using Redis port from CACHE_URI: {parsed.port}')
+
+            if parsed.password:
+                settings['redis.sessions.password'] = parsed.password
+                print('Using Redis password from CACHE_URI')
+
+            db_path = (parsed.path or '').strip('/')
+            if db_path.isdigit():
+                settings['redis.sessions.db'] = db_path
+                print(f'Using Redis DB from CACHE_URI: {db_path}')
+
+            if parsed.scheme == 'rediss':
+                settings['redis.sessions.ssl'] = 'true'
+                print('Using Redis TLS from CACHE_URI (rediss://)')
+
+            # Avoid indefinite hangs on session operations if Redis is
+            # unreachable or a network path is degraded.
+            settings.setdefault('redis.sessions.socket_connect_timeout', '5')
+            settings.setdefault('redis.sessions.socket_timeout', '5')
         except Exception as e:
             print(f'Warning: Failed to parse CACHE_URI: {e}. Using config file values.')
 
