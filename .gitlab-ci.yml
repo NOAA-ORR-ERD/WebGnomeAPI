@@ -5,7 +5,7 @@ variables:
   UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
   PYGNOME_VER: develop
   LIBGOODS_VER: develop
-  WEBGNOME_API_VER: develop
+  WEBGNOME_API_VER: fargate-migration
   WEBGNOME_CLIENT_VER: develop
   MY_SERVER_ROLE_TAG: 'gnome'
   LATEST_IMAGE: false

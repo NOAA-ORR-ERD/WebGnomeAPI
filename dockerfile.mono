@@ -30,18 +30,21 @@ RUN cd /webgnomeclient && grunt build
 
 
 FROM debian:stable-slim
+RUN apt-get update && apt-get install -y cron && apt-get clean
 COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
 COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
+COPY config_files/ config_files/
+COPY config_files/crontab /etc/cron.d/aws-mirror-matrix
 RUN ./environment.sh && \
     /env/bin/pip install supervisor && \
     cat /activate.sh >> ~/.bashrc && \
+    chmod 444 /etc/cron.d/aws-mirror-matrix && \
     mkdir -p /models/session /save_files /help /location_files /archive
 ENV BASH_ENV="/root/.bashrc"
 
 RUN bash -c "python ./location_files/compile_locations.py"
 
-COPY config_files/ config_files/
 
 CMD ["bash", "/config_files/docker_entrypoint.sh"]

@@ -90,11 +90,11 @@ class DummySession(object):
 
 def parse_redis_uri(settings):
     """
-    Parse REDIS_URI environment variable and update settings.
-    REDIS_URI format: rediss://hostname:port or redis://hostname:port
-    Falls back to existing settings if REDIS_URI is not present.
+    Parse CACHE_URI environment variable and update settings.
+    CACHE_URI format: rediss://hostname:port or redis://hostname:port
+    Falls back to existing settings if CACHE_URI is not present.
     """
-    redis_uri = os.environ.get('REDIS_URI')
+    redis_uri = os.environ.get('CACHE_URI')
     if redis_uri:
         try:
             from urllib.parse import urlparse
@@ -102,13 +102,13 @@ def parse_redis_uri(settings):
 
             if parsed.hostname:
                 settings['redis.sessions.host'] = parsed.hostname
-                print(f'Using Redis host from REDIS_URI: {parsed.hostname}')
+                print(f'Using Redis host from CACHE_URI: {parsed.hostname}')
 
             if parsed.port:
                 settings['redis.sessions.port'] = str(parsed.port)
-                print(f'Using Redis port from REDIS_URI: {parsed.port}')
+                print(f'Using Redis port from CACHE_URI: {parsed.port}')
         except Exception as e:
-            print(f'Warning: Failed to parse REDIS_URI: {e}. Using config file values.')
+            print(f'Warning: Failed to parse CACHE_URI: {e}. Using config file values.')
 
 
 def reconcile_directory_settings(settings):
@@ -207,11 +207,15 @@ def start_session_cleaner(settings):
         So we need to hook directly into the Redis publish/subscribe
         functionality.  Here we will look for expired key events.
     '''
-    host = settings.get('redis.sessions.host', 'localhost')
-    port = int(settings.get('redis.sessions.port', 6379))
     session_dir = settings.get('session_dir', './models/session')
 
-    redis = StrictRedis(host=host, port=port)
+    cache_uri = os.environ.get('CACHE_URI')
+    if cache_uri:
+        redis = StrictRedis.from_url(cache_uri)
+    else:
+        host = settings.get('redis.sessions.host', 'localhost')
+        port = int(settings.get('redis.sessions.port', 6379))
+        redis = StrictRedis(host=host, port=port)
 
     def event_handler(msg, session_dir=session_dir):
         session_id = msg['data']
