@@ -36,6 +36,7 @@ stages:
         --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
         --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
         --build-arg BUILD_KEY=${BUILD_KEY} \
+        --target ${TARGET_ENV}
         --no-cache \
         -f dockerfile.mono \
         -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .

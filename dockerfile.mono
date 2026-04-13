@@ -22,21 +22,25 @@ ENV WEBGNOME_API_VER=${WEBGNOME_API_VER}
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
 
-FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client
+FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client_dev
 
-COPY ./mono-config-client.json ./config.json
+COPY ./mono-config-client-dev.json ./config.json
 
 RUN cd /webgnomeclient && grunt build
 
+FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client_prod
+COPY ./mono-config-client-prod.json ./config.json
 
-FROM debian:stable-slim
+RUN cd /webgnomeclient && grunt build
+
+FROM debian:stable-slim as base_deploy
 RUN apt-get update && apt-get install -y cron && apt-get clean
 COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
 COPY ./help ./help
-COPY --from=client /webgnomeclient/dist/build/ /webgnomeclient
 COPY config_files/ config_files/
 COPY config_files/crontab /etc/cron.d/aws-mirror-matrix
+COPY scripts /scripts
 RUN ./environment.sh && \
     /env/bin/pip install supervisor && \
     cat /activate.sh >> ~/.bashrc && \
@@ -48,3 +52,9 @@ RUN bash -c "python ./location_files/compile_locations.py"
 
 
 CMD ["bash", "/config_files/docker_entrypoint.sh"]
+
+FROM base_deploy as dev
+COPY --from=client_dev /webgnomeclient/dist/build/ /webgnomeclient
+
+FROM base_deploy as prod
+COPY --from=client_prod /webgnomeclient/dist/build/ /webgnomeclient
