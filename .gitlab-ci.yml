@@ -40,17 +40,16 @@ test_src:
         ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
         $CI_COMMIT_BRANCH != "production")
       variables:
-        UPSTREAM_BRANCH: "develop"
+        UPSTREAM_BRANCH: 'develop'
     - if: $CI_PIPELINE_SOURCE == "pipelines"
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedules"
       when: never
   tags:
     - docker
-    - linux
   image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
-  before_script:
-    - apt-get install -y curl unzip
+  # before_script:
+  #   - apt-get install -y curl unzip
   script:
     ## We want to get the artifacts from the pygnome compile job, which is
     ## a different CI pipeline altogether where:
@@ -58,12 +57,13 @@ test_src:
     ## - $CI_COMMIT_BRANCH is the branch
     ## - compile_pygnome is the job_name
     - >
-      curl
-      "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
-      --output artifacts.zip
-    - ls -l artifacts.zip || echo "no file artifacts.zip"
-    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read artifacts.zip"
-    - head artifacts.zip
+    #   curl
+    #   "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
+    #   --output artifacts.zip
+    # - ls -l artifacts.zip || echo "no file artifacts.zip"
+    # - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
+    #   artifacts.zip"
+    # - head artifacts.zip
 
     - apt-get install -y redis
     - redis-server --daemonize yes
@@ -73,9 +73,9 @@ test_src:
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
 
     # install all the requirements
-    - conda install -y python=$PYTHON_VER --file conda_requirements.txt
-      --file conda_requirements_test.txt --file libgoods/conda_requirements.txt
-      --file /pygnome/py_gnome/conda_requirements.txt
+    - conda install -y python=$PYTHON_VER --file conda_requirements.txt --file
+      conda_requirements_test.txt --file libgoods/conda_requirements.txt --file
+      /pygnome/py_gnome/conda_requirements.txt
 
     - pushd libgoods && pip install . && popd
     - pip install .
@@ -99,23 +99,30 @@ build_temp_img:
   except:
     - pipelines
     - schedules
+  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new:1.0.4
   tags:
-    - shell
-    - build
+    - docker
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
   script:
+    - echo "cloning libgoods"
+
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
 
+    - echo "contents of shoreline"
+    - du -h -d1 ./libgoods/src/libgoods/shoreline_data
+    - cd ./libgoods
+    # - git lfs pull
+    - cd ..
     - git clone --depth 1 -b $CI_COMMIT_BRANCH
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - >
-      docker build -f dockerfile --no-cache
-      --build-arg CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH
-      --build-arg PYTHON_VER=$PYTHON_VER
-      -t registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-      .
+      docker build -f dockerfile --no-cache --build-arg
+      CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH --build-arg PYTHON_VER=$PYTHON_VER -t
+      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp .
 
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
@@ -131,10 +138,9 @@ test_img:
     - schedules
   tags:
     - docker
-    - linux
   image:
     name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - cd /webgnomeapi
     - conda install -y --file conda_requirements_test.txt
@@ -144,6 +150,7 @@ test_img:
 
 rename_temp_img:
   stage: rename_temp_img
+  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new:1.0.4
   only:
     - develop
     - main
@@ -152,8 +159,9 @@ rename_temp_img:
     - pipelines
     - schedules
   tags:
-    - shell
-    - build
+    - docker
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
@@ -350,11 +358,12 @@ deploy_api_dev:
     - docker swarm init || true
     - docker service rm $CONTAINER_NAME || true
     - >
-      docker service create 
-      --name $CONTAINER_NAME --network $APP_NETWORK
-      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models 
+      docker service create
+      --name $CONTAINER_NAME --network $APP_NETWORK --mount
+      source=$MODELS_VOLUME,destination=/webgnomeapi/models
       --mount source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
-      --network $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
+      --network $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE
+      $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
 
@@ -646,19 +655,17 @@ deploy_proxy_production:
     - ls -la /etc/ssl/certs/*
     - docker service rm webgnome_api_loadbalancer || true
     - >
-      docker service create
-      --name webgnome_api_loadbalancer
-      --network $APP_NETWORK
-      --mount type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
+      docker service create --name webgnome_api_loadbalancer --network
+      $APP_NETWORK --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
       haproxy:2.3
     - docker service rm $CONTAINER_NAME || true
     - >
-      docker service create
-      --name $CONTAINER_NAME
-      --network $APP_NETWORK
-      -p $PORT_MAPPING1 -p $PORT_MAPPING2
-      --mount type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
-      --mount type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
+      docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
+      $PORT_MAPPING1 -p $PORT_MAPPING2 --mount
+      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
+      --mount
+      type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
       --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
       $IMAGE_TAG
     - docker service ls
@@ -707,8 +714,8 @@ deploy_api_production:
     - docker pull $IMAGE_TAG
     - docker service rm $CONTAINER_NAME || true
     - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models
-      --mount source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
+      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models --mount
+      source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
       --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
     - docker service ps $CONTAINER_NAME
     - docker service logs $CONTAINER_NAME
@@ -789,7 +796,8 @@ prune_session_folders_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 prune_tmp_files_dev:
   stage: maintenance
@@ -806,7 +814,8 @@ prune_tmp_files_dev:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 prune_session_folders_stage:
   stage: maintenance
@@ -823,7 +832,8 @@ prune_session_folders_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 prune_tmp_files_stage:
   stage: maintenance
@@ -840,7 +850,8 @@ prune_tmp_files_stage:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 prune_session_folders_production:
   stage: maintenance
@@ -857,7 +868,8 @@ prune_session_folders_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_session_folders.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 prune_tmp_files_production:
   stage: maintenance
@@ -874,7 +886,8 @@ prune_tmp_files_production:
     CONTAINER_NAME: webgnome_api
     SCRIPT_NAME: ./prune_old_tmp_files.sh
   script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash $SCRIPT_NAME
+    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
+      $SCRIPT_NAME
 
 .docker tidy:
   stage: util
@@ -884,7 +897,7 @@ prune_tmp_files_production:
 
 docker prod tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - production
   tags:
@@ -893,7 +906,7 @@ docker prod tidy:
 
 docker dev tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - develop
   tags:
@@ -902,10 +915,9 @@ docker dev tidy:
 
 docker stage tidy:
   extends: '.docker tidy'
-  only: 
+  only:
     refs:
       - main
   tags:
     - deploy
     - gnome-stage
-

@@ -85,12 +85,6 @@ def get_model_metadata(request):
 
     But only: ["surface_currents"] is tested
     '''
-    # this is a temporary debugging thing, writing the request params
-    # to a file.
-    #   it should be deleted
-    # or set to use a logger.
-    # CHB used it to see what requests were being made.
-    DEBUG = True
     model_id = request.GET.get('model_id', None)
 
     bounds = request.GET.get('map_bounds', None)
@@ -101,13 +95,6 @@ def get_model_metadata(request):
     request_type = request.GET.get('request_type')
     if request_type:
         request_type = ujson.loads(request_type)
-
-    if DEBUG:
-        with open('goods_list_models_log.txt', 'a') as debug_file:
-            debug_file.write("\nNew request:\n")
-            debug_file.write(f"{model_id=}\n")
-            debug_file.write(f"{bounds=}\n")
-            debug_file.write(f"{request_type=}\n")
 
     try:
         if any(cur in request_type for cur in ('surface currents',
@@ -454,9 +441,14 @@ def get_goods_requests(request):
         rv = [r.to_response() for r in open_requests]
 
     for _idx, r in enumerate(open_requests):
-        log.info('>>>>>'
-                 f'Req {r.request_id} '
-                 f'subset {r.subset_process.is_alive()}')
+        if r.subset_process is not None:
+            log.info('>>>>>'
+                     f'Req {r.request_id} '
+                     f'subset {r.subset_process.is_alive()}')
+        else:
+            log.info('>>>>>'
+                     f'Req {r.request_id} '
+                     f'No subset subprocess')
 
     return rv
 
@@ -588,13 +580,15 @@ class GOODSRequest(object):
             raise EnvironmentError('libgoods archive directory not set '
                                    '(worker thread)')
         logger.info('START')
-        #STEP 1: Subset process to query libgoods for model subset
+        # STEP 1: Subset process to query libgoods for model subset
         status = result = None
         if (self.orig_request.registry.settings.get('goods_use_subprocess_subset', 'true') == 'true'):
             # use a subprocess
+            # self.outpath so that the subprocess also writes the file
+            #  - a bit of a hack, shold be rethought?
             self.subset_process = Process(target=subset_process_func,
-                                        args=(request_args, mq),
-                                        daemon=True)
+                                          args=(request_args, mq, self.outpath),
+                                          daemon=True)
             self.subset_process.start()
             try:
                 mq.get(timeout=30)  # startup timeout
@@ -630,9 +624,13 @@ class GOODSRequest(object):
             logger.info('Joining subset process')
             result = mq.get(timeout=60)
             self.subset_process.join()
-        else:
+        else: # not using a subprocess for the subsetting, etc.
+            # this is barely untested ...
+            # might be better to call subset_process_func() (with dummpy mq)
+            # that that the code stays in sync.
             request_args.pop('libgoods_archive', None)
             result = api.get_model_subset(**request_args)
+            result.write_nc(outpath)
             status = 'success'
         logger.info('RESULT: {}'.format(repr(result)))
 
@@ -653,7 +651,7 @@ class GOODSRequest(object):
             return
         
         if status:
-            #SUBSET SUCCESSFUL
+            # SUBSET SUCCESSFUL
             logger.info('SUBSET COMPLETE')
             logger.info(str(status))
             self._subset_xr = result
@@ -663,7 +661,12 @@ class GOODSRequest(object):
             self.error(result)
 
         self._subset_finished = True
+        # Fixme: it seems to be either zero here or 100 later -- is there any chance we'll know
+        #   what percent it is?
         self.percent = 0
+        # We really need to rethink this step
+        #   probably a libgoods `estimate_subset_size` method
+        # but still capturing, 'cause maybe it'll get use / reported somewhere
         self.subset_size = self._subset_xr.ds.nbytes
         # Needs further development in the client before we can add this back in.
         # if self.subset_size > self._max_size:
@@ -673,17 +676,19 @@ class GOODSRequest(object):
             self.message = 'Cancelled'
             return
         self.state = 'requesting'
-        #STEP 2: use api.get_model_output to retrieve subset data to self.outpath
-        if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
-            self.request_process = Process(target=api.get_model_output,
-                                        args=(self._subset_xr, self.outpath))
-            self.request_process.start()
-            self.request_process.join(int(self.orig_request.registry.settings.get('goods_subprocess_timeout', 60)))  #request timeout
-            if self.request_process.exitcode:
-                logger.info('REQUEST FAILED: '
-                            f'exitcode: {self.request_process.exitcode}')
-        else:
-            api.get_model_output(self._subset_xr, self.outpath)
+        # get_model_output called in subsetting process now.
+        # # STEP 2: use api.get_model_output to retrieve subset data to self.outpath
+        # if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
+        #     self.request_process = Process(target=api.get_model_output,
+        #                                 args=(self._subset_xr, self.outpath))
+        #     self.request_process.start()
+        #     self.request_process.join(int(self.orig_request.registry.settings.get('goods_subprocess_timeout', 60)))  #request timeout
+        #     if self.request_process.exitcode:
+        #         logger.info('REQUEST FAILED: '
+        #                     f'exitcode: {self.request_process.exitcode}')
+        # else:
+        #     api.get_model_output(self._subset_xr, self.outpath)
+
         logger.info('REQUEST COMPLETE')
         if self.cancel_event.is_set():
             self.message = 'Cancelled'
@@ -815,9 +820,11 @@ class Tracker(Callback):
             self.model.elapsed = elapsed
 
 
-def subset_process_func(request_args, mq):
+def subset_process_func(request_args, mq, outpath):
     mq.put('startup')  # startup sync message
 
+    # Fixme: couldn't all this figure out the archive stuff be done ahead of time?
+    #        the client is never going to know the archive dir, so it's not request specific.
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
 
@@ -839,6 +846,7 @@ def subset_process_func(request_args, mq):
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
+        result.write_nc(outpath)
         mq.put('success')
         mq.put(result)
         mq.close()
