@@ -18,21 +18,21 @@ session = Service(name='session', path='/session',
 def get_info(request):
     if hasattr(request, 'session'):
         session = request.session
-        log.info('session endpoint entered')
-        log.info(f'session id before ensure: {session.session_id}')
+        # log.info('session endpoint entered')
+        # log.info(f'session id before ensure: {session.session_id}')
 
         if isinstance(session.session_id, LazyCreateSession):
-            log.info('session id is lazy; ensuring id now')
+            # log.info('session id is lazy; ensuring id now')
             session.ensure_id()
-            log.info(f'session id after ensure: {session.session_id}')
+            # log.info(f'session id after ensure: {session.session_id}')
             session['active_model'] = {}
-            log.info('persisting new session')
+            # log.info('persisting new session')
             session.do_persist()
-            log.info('session persisted')
+            # log.info('session persisted')
 
-        log.info('initializing in-memory session objects')
+        # log.info('initializing in-memory session objects')
         init_session_objects(request, force=False)
-        log.info('session endpoint returning id')
+        # log.info('session endpoint returning id')
 
         return {'id': session.session_id}
     else:
