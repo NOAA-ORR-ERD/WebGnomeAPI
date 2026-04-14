@@ -106,6 +106,10 @@ stages:
   variables:
     API_URL: https://gnome.orr.noaa.gov
     TARGET_ENV: prod
+    PYGNOME_VER: production
+    LIBGOODS_VER: develop
+    WEBGNOME_API_VER: fargate-migration
+    WEBGNOME_CLIENT_VER: production
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
