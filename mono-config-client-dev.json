@@ -1,7 +1,7 @@
 {
   "port": "443",
   "api": "https://gnome-api-dev.nos-orr.net",
-  "socketio": "",
+  "socketio": "https://gnome-api.orr.noaa.gov/socket.io/",
   "oil_api": "/oilapi",
   "goods_api": "https://goods-dev.nos-orr.net/goods",
   "date_format": {
