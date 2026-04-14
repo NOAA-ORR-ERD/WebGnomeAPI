@@ -6,7 +6,7 @@
 # Acquire a Redis distributed lock before proceeding. Releases on exit (including signals).
 LOCK_KEY="aws-mirror-to-efs:lock"
 LOCK_TTL=14400  # 4 hours in seconds
-
+export LOCK_KEY LOCK_TTL
 python3 "$(dirname "$0")/acquire_redis_lock.py"
 
 LOCK_EXIT=$?
@@ -18,7 +18,7 @@ elif [ $LOCK_EXIT -ne 0 ]; then
 fi
 
 LOCK_FILE="/tmp/.redis_lock_$$"
-LOCK_VALUE=$(cat "$LOCK_FILE")
+export LOCK_VALUE=$(cat "$LOCK_FILE")
 rm -f "$LOCK_FILE"
 
 release_lock() {
@@ -27,7 +27,7 @@ release_lock() {
 
 trap 'release_lock' EXIT
 
-export LOCK_KEY LOCK_TTL LOCK_VALUE
+
 
 set -e
 set -x
