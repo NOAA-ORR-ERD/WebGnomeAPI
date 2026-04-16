@@ -35,6 +35,7 @@ stages:
         --build-arg PYGNOME_VER=${PYGNOME_VER} \
         --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
         --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
+        --build-arg WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER} \
         --build-arg BUILD_KEY=${BUILD_KEY} \
         --target ${TARGET_ENV} \
         --no-cache \
