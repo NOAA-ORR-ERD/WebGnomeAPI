@@ -6,7 +6,7 @@ variables:
   PYGNOME_VER: develop
   LIBGOODS_VER: develop
   WEBGNOME_API_VER: fargate-migration
-  WEBGNOME_CLIENT_VER: develop
+  WEBGNOME_CLIENT_VER: develop-fargate
   MY_SERVER_ROLE_TAG: 'gnome'
   LATEST_IMAGE: false
 
