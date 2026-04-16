@@ -5,6 +5,8 @@
 # script will install the full python environment.
 ARG WEBGNOME_CLIENT_VER=main
 
+ENV WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER}}
+
 FROM registry.orr.noaa.gov/erd/environments/ubuntu-pixi:latest AS api
 
 ARG BUILD_KEY=
