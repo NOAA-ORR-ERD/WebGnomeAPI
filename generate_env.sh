@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 PYTHON_VER=${PYTHON_VER:-3.13}
 PYGNOME_VER=${PYGNOME_VER:-main}
 LIBGOODS_VER=${LIBGOODS_VER:-main}
@@ -7,7 +9,8 @@ WEBGNOME_API_VER=${WEBGNOME_API_VER:-main}
 
 set -x
 
-pixi global install git gxx make libxext-devel-cos7-aarch64 libsm-devel-cos7-aarch64 libxrender-cos7-aarch64 libglib wget chrpath bzip2 tar patchelf ca-certificates gcc awk pixi-pack
+pixi global install git git-lfs gxx make libxext-devel-cos7-aarch64 libsm-devel-cos7-aarch64 libxrender-cos7-aarch64 libglib wget chrpath bzip2 tar patchelf ca-certificates gcc awk pixi-pack
+git lfs install
 
 if [ -d "./.tempenv" ]; then
 	rm -rf ./.tempenv
