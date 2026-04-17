@@ -74,3 +74,6 @@ for entry in "${SYNC_MATRIX[@]}"; do
     echo "=========================================================="
     MODEL="$MODEL" PATTERN="$PATTERN" CAST="$CAST" bash "$SCRIPT_DIR/aws-mirror-matrix.sh" "/archive"
 done
+
+bash "$SCRIPT_DIR/aws-purge-old-forcasts.sh"
+bash "$SCRIPT_DIR/aws-purge-old-nowcasts.sh"
