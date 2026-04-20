@@ -33,7 +33,7 @@ COPY ./mono-config-client-prod.json ./config.json
 
 RUN cd /webgnomeclient && grunt build
 
-FROM debian:stable-slim as base_deploy
+FROM debian:stable-slim AS base_deploy
 RUN apt-get update && apt-get install -y cron awscli && apt-get clean
 COPY --from=api /.tempenv/environment.sh ./
 COPY ./location_files ./location_files
@@ -53,8 +53,8 @@ RUN bash -c "python ./location_files/compile_locations.py"
 
 CMD ["bash", "/config_files/docker_entrypoint.sh"]
 
-FROM base_deploy as dev
+FROM base_deploy AS dev
 COPY --from=client_dev /webgnomeclient/dist/build/ /webgnomeclient
 
-FROM base_deploy as prod
+FROM base_deploy AS prod
 COPY --from=client_prod /webgnomeclient/dist/build/ /webgnomeclient

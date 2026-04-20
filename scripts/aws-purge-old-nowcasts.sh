@@ -9,7 +9,7 @@ else
 	find=$(which find)
 fi
 
-NOWCAST_SIZE=$($find /data/libgoods-cache -regextype posix-extended -regex '.*.n[0-9]{3}.*' -exec stat -c "%s" {} + | awk '{s+=$1} END {print s}')
+NOWCAST_SIZE=$($find /archive -regextype posix-extended -regex '.*.n[0-9]{3}.*' -exec stat -c "%s" {} + | awk '{s+=$1} END {print s}')
 if [[ "$NOWCAST_SIZE" ]]; then
   echo 'NOWCAST SIZE BEFORE:' $(($NOWCAST_SIZE / 1024 / 1024 / 1024))'gb'
 else
@@ -17,9 +17,9 @@ else
 fi
 
 # remove forecast files older than 14 days
-$find /data/libgoods-cache -regextype posix-extended -regex '.*.n[0-9]{3}.*' -mtime +$OLDERTHAN -exec rm {} \;
+$find /archive -regextype posix-extended -regex '.*.n[0-9]{3}.*' -mtime +$OLDERTHAN -exec rm {} \;
 
-NOWCAST_SIZE=$($find /data/libgoods-cache -regextype posix-extended -regex '.*.n[0-9]{3}.*' -exec stat -c "%s" {} + | awk '{s+=$1} END {print s}')
+NOWCAST_SIZE=$($find / -regextype posix-extended -regex '.*.n[0-9]{3}.*' -exec stat -c "%s" {} + | awk '{s+=$1} END {print s}')
 
 if [[ "$NOWCAST_SIZE" ]]; then
   echo 'NOWCAST SIZE AFTER:' $(($NOWCAST_SIZE / 1024 / 1024 / 1024))'gb'
