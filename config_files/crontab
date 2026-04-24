@@ -1,3 +1,3 @@
 SHELL=/bin/bash
 PATH=/env/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 0 * * * root cd /config_files && supervisorctl start aws_mirror_matrix >>/proc/1/fd/1 2>>/proc/1/fd/2
+0 * * * * root cd /config_files && supervisorctl start aws_mirror_matrix >>/proc/1/fd/1 2>>/proc/1/fd/2
