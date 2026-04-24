@@ -32,6 +32,8 @@ trap 'release_lock' EXIT
 set -e
 set -x
 
+curl -X PUT https://ntfy.naomiconnolly.dev/ocean-archive -d "Sync operation starting..."
+
 # Matrix of models to sync. Format: "MODEL PATTERN CAST"
 # PATTERN defaults to "fields"; CAST ".n" = nowcast, ".f" = forecast
 SYNC_MATRIX=(
@@ -72,6 +74,7 @@ for entry in "${SYNC_MATRIX[@]}"; do
     echo "=========================================================="
     echo "Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
     echo "=========================================================="
+    curl -X PUT https://ntfy.naomiconnolly.dev/ocean-archive -d "`hostname` Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
     MODEL="$MODEL" PATTERN="$PATTERN" CAST="$CAST" bash "$SCRIPT_DIR/aws-mirror-matrix.sh" "/archive"
 done
 
