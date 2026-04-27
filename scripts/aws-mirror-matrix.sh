@@ -40,19 +40,15 @@ else
     done
 fi
 
-# Loop through our dates and run the sync command
+INCLUDE_PARAMS=()
 for CURRENT_DATE in "${DATE_LIST[@]}"; do
-    # Format with trailing slash as expected by the original path logic
     DATE_PREFIX="$CURRENT_DATE/"
     FILE_PATH="$DATE_PREFIX*$PATTERN$CAST*"
-    
-    echo "=========================================================="
-    echo "Starting sync for date pattern: $CURRENT_DATE"
-    echo "=========================================================="
-
-    aws s3 sync s3://noaa-nos-ofs-pds/$MODEL "$LOCAL_DIR/$MODEL" \
-        --no-sign-request \
-        --size-only \
-        --exclude "*" \
-        --include "*netcdf/$FILE_PATH"
+    INCLUDE_PARAMS+=(--include "*netcdf/$FILE_PATH")
 done
+
+aws s3 sync s3://noaa-nos-ofs-pds/$MODEL "$LOCAL_DIR/$MODEL" \
+    --no-sign-request \
+    --size-only \
+    --exclude "*" \
+    "${INCLUDE_PARAMS[@]}"

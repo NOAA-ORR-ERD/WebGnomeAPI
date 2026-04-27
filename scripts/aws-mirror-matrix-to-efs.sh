@@ -70,13 +70,17 @@ SYNC_MATRIX=(
 SCRIPT_DIR="$(dirname "$0")"
 
 for entry in "${SYNC_MATRIX[@]}"; do
-    read -r MODEL PATTERN CAST <<< "$entry"
-    echo "=========================================================="
-    echo "Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
-    echo "=========================================================="
-    curl -X PUT https://ntfy.naomiconnolly.dev/ocean-archive -d "`hostname` Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
-    MODEL="$MODEL" PATTERN="$PATTERN" CAST="$CAST" bash "$SCRIPT_DIR/aws-mirror-matrix.sh" "/archive"
+    (
+        read -r MODEL PATTERN CAST <<< "$entry"
+        echo "=========================================================="
+        echo "Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
+        echo "=========================================================="
+        curl -X PUT https://ntfy.naomiconnolly.dev/ocean-archive -d "`hostname` Syncing MODEL=$MODEL PATTERN=$PATTERN CAST=$CAST"
+        MODEL="$MODEL" PATTERN="$PATTERN" CAST="$CAST" bash "$SCRIPT_DIR/aws-mirror-matrix.sh" "/archive"
+    ) &
 done
+
+wait
 
 bash "$SCRIPT_DIR/aws-purge-old-forcasts.sh"
 bash "$SCRIPT_DIR/aws-purge-old-nowcasts.sh"
