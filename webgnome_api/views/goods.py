@@ -501,7 +501,7 @@ class GOODSRequest(object):
         # self.tshift = float(tshift) if tshift != 'NaN' else None
 
         self._debug = _debug
-        self._max_size = int(eval(self.orig_request.registry.settings.get('max_goods_request_size', None)))
+        self._max_size = int(eval(self.orig_request.registry.settings.get('max_goods_request_size', 10 * 1024 * 1024 * 1024)))
         self._reconfirm_timeout = _reconfirm_timeout
         self.logger = self.__class__.logger
 
