@@ -477,8 +477,7 @@ class GOODSRequest(object):
                  outpath=None,
                  tshift=0,
                  _debug=False,
-                 _max_size=100000000,  # 100 MB
-                 _reconfirm_timeout=300,
+                 _reconfirm_timeout=60,  # seconds to wait for reconfirmation before marking request as failed
                  ):
         '''
         Object to represent an open asynchronous file retrieval.
@@ -494,12 +493,15 @@ class GOODSRequest(object):
         self.filename = filename
         self.outpath = outpath
         self.tshift = tshift
+        self.error_type = ''
+        self.subset_time = 0
+        self.retrieve_time = 0
 
         # timezone shift retained for future use by webgnomeapi
         # self.tshift = float(tshift) if tshift != 'NaN' else None
 
         self._debug = _debug
-        self._max_size = _max_size
+        self._max_size = int(eval(self.orig_request.registry.settings.get('max_goods_request_size', None)))
         self._reconfirm_timeout = _reconfirm_timeout
         self.logger = self.__class__.logger
 
@@ -532,7 +534,11 @@ class GOODSRequest(object):
                 'time_elapsed': self.time_elapsed,
                 'message': repr(self.message),
                 'outpath': self.outpath,
-                'tshift': self.tshift}
+                'tshift': self.tshift,
+                'error_type': self.error_type,
+                'subset_time': self.subset_time,
+                'retrieve_time': self.retrieve_time,
+                }
 
     @property
     def subset_xr(self):
@@ -556,7 +562,6 @@ class GOODSRequest(object):
                    'already started or completed')
             self.write_log(msg, 'error', 'main')
             return msg
-        self.state = 'subsetting'
         self._subset_finished = False
 
         message_queue = multiprocessing.Queue()
@@ -573,6 +578,69 @@ class GOODSRequest(object):
             daemon=True
         )
         self.request_thread.start()
+
+    def too_large(self):
+        size = self._subset_xr.ds.nbytes
+        self.state = 'too_large'
+        self.message = (f'Subset size is very large ({size}). '
+                        'Reconfirm required.')
+        self.pause_event.clear()
+        if not self.pause_event.wait(timeout=self._reconfirm_timeout):
+            self.cancel_request()
+            return
+
+    def error(self, t, msg):
+        self.state = 'error'
+        self.error_type = t
+        self.message = msg
+
+    def reset(self):
+        self.state = 'preparing'
+        self.message = None
+        self.error_type = ''
+        self.time_elapsed = 0
+        self._subset_finished = False
+        self._request_finished = False
+        self._subset_xr = None
+        self._request_xr = None
+        if self.subset_process:
+            self.subset_process.terminate()
+        if self.request_process:
+            self.request_process.terminate()
+        if self.request_thread:
+            try:
+                self.request_thread.join(timeout=5)
+            except Exception as e:
+                self.logger.error('Request thread join error: ' + repr(e))
+                raise
+            self.request_thread = None
+
+    def reconfirm(self):
+        if self.state == 'too_large':
+            self.state = 'subsetting'
+        self.pause_event.set()  # releases the waiting request thread
+
+    def _debugPause(self):
+        breakpoint()
+
+    def cancel_request(self):
+        'terminate any running processes or threads and mark request as dead'
+        self.cancel_event.set()
+        self.state = 'dead'
+        if self.subset_process:
+            self.subset_process.terminate()
+        if self.request_process:
+            self.request_process.terminate()
+        if self.request_thread:
+            try:
+                self.request_thread.join(timeout=5)
+            except Exception as e:
+                self.logger.error('Request thread failed to join upon cancel_request: ' + repr(e))
+                raise
+
+    def retry_request(self):
+        self.reset()
+        self.start()
 
     def _thread_request_func(self, request_args, logger, mq):
         if (not hasattr(libgoods.config, 'archive_dir') and
@@ -591,41 +659,83 @@ class GOODSRequest(object):
                                           daemon=True)
             self.subset_process.start()
             try:
-                mq.get(timeout=30)  # startup timeout
+                status = mq.get(timeout=30)  # startup timeout (expected msg 'startup')
             except queue.Empty:
-                logger.error('Subset process startup failed due to timeout on process creation {0}'.format(
-                    self.request_id))
-                self.error('subset_timeout')
-                self.cancel_request() # Still breaks here, need more time to sort it out.
+                msg = f'Subset process failed to start within timeout for request {self.filename}'
+                logger.error(msg)
+                self.error('startup_timeout', msg)
                 return
-            msg = '0 sec'
+            self.state = 'subsetting'
+            msg = '0'
             counter = 0
             timeout = 180
+            timevar = 'subset_time'
+            #rudimentary progress loop to capture messages from the subset process and update time elapsed until process finishes or times out
             while counter < timeout:  # 3 minutes until loop times out
                 logger.info('SUBSET PROGESS: ' + str(counter))
                 try:
                     msg = mq.get(timeout=2)
-                    counter += 2
                     if msg == 'success' or msg == 'error':
+                        #next message is result or error message.
                         logger.info('leaving progress loop via break')
                         logger.info('Message: {0}'.format(msg))
+                        logger.info('Joining subset process')
+                        status = msg
+                        try:
+                            result = mq.get(timeout=30)
+                        except queue.Empty:
+                            m = f'Subset process reported success or error but failed to send final result through queue before timeout expired for request {self.filename}'
+                            logger.error(m)
+                            self.error('join_timeout', m)
                         break
+                    elif msg == 'subset_complete':
+                        logger.info('Subset process reported subset_complete')
+                        self.state = 'retrieving'
+                        self.message = 'Subset complete, retrieving data'
+                        self._subset_finished = True
+                        try:
+                            result = mq.get(timeout=30)  # wait for result or error message
+                        except queue.Empty:
+                            m = f'Subset process reported subset_complete but failed to send final result through queue before timeout expired for request {self.filename}'
+                            logger.error(m)
+                            self.error('join_timeout', m)
+                        self.subset_size = result
+                        if self.subset_size > self._max_size:
+                            self.too_large()
+                        mq.put('proceed')
                     else:
                         if msg:
                             logger.info('Message: {0}'.format(msg))
-                        while not mq.empty():
-                            msg = mq.get()
-                            if msg:
-                                logger.info('Message: {0}'.format(msg))
                         self.time_elapsed = counter
                 except queue.Empty:
-                    pass
-            status = msg
-            logger.info('Joining subset process')
-            result = mq.get(timeout=60)
-            self.subset_process.join()
+                    counter += 2
+                    if self.state == 'subsetting':
+                        self.subset_time = counter
+                    elif self.state == 'retrieving':
+                        self.retrieve_time = counter - self.subset_time
+                    elif self.state == 'preparing':
+                        logger.info('Request has been retried. thread should be exiting. breaking loop.')
+                        return
+                    elif hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is not None:
+                        logger.info('Subset process has exited with exitcode ' + str(self.subset_process.exitcode) + '. Breaking progress loop.')
+                        break
+                    self.time_elapsed = counter
+                    
+            mq.close()
+            mq.cancel_join_thread()
+            self.subset_process.join(5) # give it a few seconds to clean up if it finished while we were waiting for messages
+            if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
+                # process still running (self.subset_process.exitcode is None), and timeout exceeded
+                m = f'Subset process exceeded timeout of {timeout} seconds for request {self.filename}'
+                self.error('subset_timeout', m)
+                return
+            elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode or status == 'error'):
+                logger.info('SUBSET FAILED: '
+                            f'exitcode: {self.subset_process.exitcode}')
+                self.error('subprocess_error', 'Subset process reported error: ' + repr(result))
+                return
         else: # not using a subprocess for the subsetting, etc.
-            # this is barely untested ...
+            # this is barely tested, definitely not safe for production...
             # might be better to call subset_process_func() (with dummpy mq)
             # that that the code stays in sync.
             request_args.pop('libgoods_archive', None)
@@ -633,137 +743,14 @@ class GOODSRequest(object):
             result.write_nc(outpath)
             status = 'success'
         logger.info('RESULT: {}'.format(repr(result)))
-
-        if self.cancel_event.is_set():
-            self.message = 'Cancelled'
-            return
-        if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
-            # process still running, so timeout exceeded
-            logger.error(f'Failed subset for {request_args["request_id"]} '
-                         'due to timeout')
-            self.error('subset_timeout')
-            self.cancel_request()
-            return
-        elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode or status == 'error'):
-            logger.info('SUBSET FAILED: '
-                        f'exitcode: {self.subset_process.exitcode}')
-            self.error(result)
-            return
-        
-        if status:
-            # SUBSET SUCCESSFUL
-            logger.info('SUBSET COMPLETE')
-            logger.info(str(status))
-            self._subset_xr = result
-            logger.info(str(self._subset_xr))
-        else:
-            self.message = status
-            self.error(result)
-
-        self._subset_finished = True
-        # Fixme: it seems to be either zero here or 100 later -- is there any chance we'll know
-        #   what percent it is?
-        self.percent = 0
-        # We really need to rethink this step
-        #   probably a libgoods `estimate_subset_size` method
-        # but still capturing, 'cause maybe it'll get use / reported somewhere
-        self.subset_size = self._subset_xr.ds.nbytes
         # Needs further development in the client before we can add this back in.
-        # if self.subset_size > self._max_size:
-        #     self.too_large()
-
-        if self.cancel_event.is_set():
-            self.message = 'Cancelled'
-            return
-        self.state = 'requesting'
-        # get_model_output called in subsetting process now.
-        # # STEP 2: use api.get_model_output to retrieve subset data to self.outpath
-        # if (self.orig_request.registry.settings.get('goods_use_subprocess', 'true') == 'true'):
-        #     self.request_process = Process(target=api.get_model_output,
-        #                                 args=(self._subset_xr, self.outpath))
-        #     self.request_process.start()
-        #     self.request_process.join(int(self.orig_request.registry.settings.get('goods_subprocess_timeout', 60)))  #request timeout
-        #     if self.request_process.exitcode:
-        #         logger.info('REQUEST FAILED: '
-        #                     f'exitcode: {self.request_process.exitcode}')
-        # else:
-        #     api.get_model_output(self._subset_xr, self.outpath)
-
-        logger.info('REQUEST COMPLETE')
-        if self.cancel_event.is_set():
-            self.message = 'Cancelled'
-            return
 
         self._request_finished = True
         self.state = 'finished'
         self.percent = 100
-        register_exportable_file(self.orig_request, self.filename,
-                                 self.outpath)
+        register_exportable_file(self.orig_request, self.filename, self.outpath)
         self.complete_event.set()
         # logger.close()
-
-    def too_large(self):
-        size = self._subset_xr.ds.nbytes
-        self.state = 'too_large'
-        self.message = (f'Subset size is very large ({size}). '
-                        'Reconfirm required.')
-        self.pause_event.clear()
-        if not self.pause_event.wait(timeout=self._reconfirm_timeout):
-            self.dead()
-            return
-
-    def error(self, msg):
-        self.state = 'error'
-        self.message = msg
-
-    def reset(self):
-        self.state = 'preparing'
-        self.message = None
-        self.time_elapsed = 0
-        self._subset_finished = False
-        self._request_finished = False
-        self._subset_xr = None
-        self._request_xr = None
-        if self.subset_process:
-            self.subset_process.terminate()
-        if self.request_process:
-            self.request_process.terminate()
-        if self.request_thread:
-            try:
-                self.request_thread.join(timeout=3)
-            except Exception as e:
-                self.logger.error('Request thread join error: ' + repr(e))
-                raise
-            self.request_thread = None
-
-    def reconfirm(self):
-        if self.state == 'too_large':
-            self.state = 'subsetting'
-        self.pause_event.set()  # releases the waiting request thread
-
-    def dead(self):
-        self.cancel_request()
-
-    def _debugPause(self):
-        breakpoint()
-
-    def cancel_request(self):
-        self.cancel_event.set()
-        self.state = 'dead'
-        if self.subset_process:
-            self.subset_process.terminate()
-        if self.request_process:
-            self.request_process.terminate()
-        if self.request_thread:
-            try:
-                self.request_thread.join(timeout=3)
-            except Exception as e:
-                self.logger.error('Request thread join error: ' + repr(e))
-                raise
-
-    def retry_request(self):
-        self.reset()
-        self.start()
 
 
 class Tracker(Callback):
@@ -825,6 +812,8 @@ def subset_process_func(request_args, mq, outpath):
 
     # Fixme: couldn't all this figure out the archive stuff be done ahead of time?
     #        the client is never going to know the archive dir, so it's not request specific.
+    # No, it's not request specific. It is provided because the subprocess made with 'spawn' does not
+    # retain the main process's libgoods config, so the archive_dir needs to be passed in and set here.
     if request_args.get('libgoods_archive', None):
         mq.put('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
 
@@ -846,14 +835,18 @@ def subset_process_func(request_args, mq, outpath):
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
+        mq.put('subset_complete')
+        mq.put(result.ds.nbytes or result.size())
+        try:
+            mq.get(60)  # wait for reconfirmation if needed (e.g. if subset is too large)
+        except queue.Empty:
+            mq.put('error')
+            mq.put('Subset process failed to receive reconfirmation within timeout')
+            return
         result.write_nc(outpath)
         mq.put('success')
         mq.put(result)
-        mq.close()
-        mq.join_thread()
     except Exception as e:
         mq.put('error')
-        mq.put(e, block=True, timeout=5)
-        mq.close()
-        mq.join_thread()
+        mq.put(repr(e), block=True, timeout=5)
         raise
