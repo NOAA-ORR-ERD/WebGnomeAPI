@@ -13,7 +13,7 @@ PATTERN=${PATTERN:="fields"}
 CAST=${CAST:=".n"}
 
 # NEW: Configure how many days back to sync if a specific date isn't provided.
-DAYS_BACK=${DAYS_BACK:=14}
+DAYS_BACK=${DAYS_BACK:=0}
 
 # Helper function to calculate past dates.
 # This checks which version of `date` is installed to support both Linux (GNU) and macOS (BSD).
