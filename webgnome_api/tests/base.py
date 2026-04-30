@@ -22,7 +22,7 @@ class GnomeTestCase(TestCase):
         self.project_root = str(HERE.resolve())
 
     def get_settings(self,
-                     config_file='../../config-test.ini#webgnome_api'):
+                     config_file='../../config_files/api_config.ini#webgnome_api'):
         return appconfig('config:%s' % config_file, relative_to=str(HERE))
 
 
@@ -79,7 +79,8 @@ class FunctionalTestBase(GnomeTestCase):
             parents=True, exist_ok=True)
         # os.makedirs('./models/session/' + session_resp.json_body['id'])
         shutil.copyfile(MODELS_DIR / 'Test.bna',
-                        MODELS_DIR / 'session' / f"{session_resp.json_body['id']}"
+                        MODELS_DIR / 'session' /
+                        f"{session_resp.json_body['id']}"
                         / "Test.bna")
 
 
@@ -87,6 +88,7 @@ class UnitTestBase(GnomeTestCase):
     """
     NOTE: this does not seem to be used, and I think is broken
     """
+
     def setUp(self):
         super(UnitTestBase, self).setUp()
 
