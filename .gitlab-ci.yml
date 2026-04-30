@@ -134,8 +134,10 @@ Test Built image:
   tags:
     - docker
   script:
-    - cd /webgnomeapi
-    - conda install -y --file conda_requirements_test.txt
+    - apt update
+    - apt install redis -y
     - redis-server --daemonize yes
-    - pytest --pyargs webgnome_api
+    - /env/bin/pip install pytest webtest>=2.0 testfixtures
+    - /env/bin/pytest --pyargs webgnome_api
+
   <<: *dev_definition
