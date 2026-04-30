@@ -1,21 +1,15 @@
 variables:
   PYTHON_VER: '3.13'
-  PYGNOME_PROJECT_ID: '7'
-  APP_NETWORK: webgnome_net
-  UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
   PYGNOME_VER: develop
   LIBGOODS_VER: develop
-  WEBGNOME_API_VER: fargate-migration
+  WEBGNOME_API_VER: $CI_COMMIT_REF_NAME
   WEBGNOME_CLIENT_VER: develop-fargate
   MY_SERVER_ROLE_TAG: 'gnome'
-  LATEST_IMAGE: false
 
 stages:
-  - util
   - build
   - test
   - deploy
-  - maintenance
 
 .build_template: &build_definition
   stage: build
@@ -98,7 +92,7 @@ stages:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
-    - if: $CI_COMMIT_BRANCH == "fargate-migration"
+    - if: $CI_COMMIT_REF_NAME
 
 .prod: &prod_definition
   environment:
@@ -114,8 +108,7 @@ stages:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_BRANCH == "fargate-migration-prod"
+    - if: $CI_COMMIT_TAG # only run for tags
 
 Development Build Docker Image:
   <<: *build_definition
@@ -132,3 +125,17 @@ Development Push to ECR and Update Fargate Service:
 Production Push to ECR and Update Fargate Service:
   <<: *deploy_definition
   <<: *prod_definition
+
+Test Built image:
+  stage: test
+  image:
+    name: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+    entrypoint: ['']
+  tags:
+    - docker
+  script:
+    - cd /webgnomeapi
+    - conda install -y --file conda_requirements_test.txt
+    - redis-server --daemonize yes
+    - pytest --pyargs webgnome_api
+  <<: *dev_definition
