@@ -138,6 +138,8 @@ Test Built image:
     - apt update
     - apt install redis -y
     - redis-server --daemonize yes
+    - rm -rf ./location_files
+    - ln -s /location_files ./location_files
     - /env/bin/pip install pytest webtest>=2.0 testfixtures
     - /env/bin/pytest --pyargs webgnome_api
   <<: *dev_definition
