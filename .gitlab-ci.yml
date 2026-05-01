@@ -35,9 +35,9 @@ stages:
         --target ${TARGET_ENV} \
         --no-cache \
         -f dockerfile.mono \
-        -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .
-    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
-    - echo "GCR_IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" >> build.env
+        -t "${IMAGE_NAME}" .
+    - docker push ${IMAGE_NAME}
+    - echo "GCR_IMAGE=${IMAGE_NAME}" >> build.env
   artifacts:
     reports:
       dotenv: build.env
@@ -90,6 +90,7 @@ stages:
   variables:
     API_URL: https://gnome-dev.nos-orr.net
     TARGET_ENV: dev
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
@@ -106,6 +107,7 @@ stages:
     LIBGOODS_VER: develop
     WEBGNOME_API_VER: $CI_COMMIT_TAG
     WEBGNOME_CLIENT_VER: production
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
