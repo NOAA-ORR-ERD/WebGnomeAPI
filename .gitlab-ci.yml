@@ -122,10 +122,14 @@ Production Build Docker Image:
   <<: *prod_definition
 
 Development Push to ECR and Update Fargate Service:
+  dependencies:
+    - Development Build Docker Image
   <<: *deploy_definition
   <<: *dev_definition
 
 Production Push to ECR and Update Fargate Service:
+  dependencies:
+    - Production Build Docker Image
   <<: *deploy_definition
   <<: *prod_definition
 
