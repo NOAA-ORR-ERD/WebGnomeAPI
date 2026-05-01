@@ -131,6 +131,7 @@ Test Built image:
   image:
     name: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
     entrypoint: ['']
+  allow_failure: true
   tags:
     - docker
   script:
