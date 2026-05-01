@@ -23,7 +23,7 @@ no-build-isolation = true
 
 
 [dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.12,<3.14"
 awesome-slugify = "*"
 colander = "<2"
 progressbar = "*"
@@ -83,7 +83,7 @@ google-auth-oauthlib = "*"
 # gnome = {path = "wheelhouse/gnome-1.1.19.dev0-cp313-cp313-macosx_10_13_x86_64.whl"}
 
 [feature.dev.dependencies]
-python = "3.13.*"
+python = "3.12.*"
 ipython = "*"
 pytest = "*"
 webtest = ">=2.0"
@@ -102,8 +102,8 @@ scikit-build-core = ">=0.9.9"
 [feature.dev.pypi-dependencies]
 # for dev, depends on the local source
 webgnome-api = { path = ".", editable = true }
-gnome = {path = "../pygnome/py_gnome/", editable = true }
 libgoods = {path = "../libgoods/", editable = true }
+gnome = {path = "../pygnome/py_gnome/", editable = true }
 
 # need redis server for Mac
 [target.osx-64.dependencies]

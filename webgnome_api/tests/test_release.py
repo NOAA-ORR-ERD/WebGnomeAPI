@@ -13,11 +13,10 @@ class ReleaseTests(FunctionalTestBase):
     req_data = {'obj_type': 'gnome.spills.release.PointLineRelease',
                 }
 
-    options_headers = {# 'Origin': 'http://0.0.0.0:8080',
-                       # this needs to match cors_policy.origins in config-test.ini
-                       'Origin': 'http://0.0.0.0:9999',
-                       'Access-Control-Request-Method': 'GET'}
-
+    options_headers = {  # 'Origin': 'http://0.0.0.0:8080',
+        # this needs to match cors_policy.origins in config-test.ini
+        'Origin': 'http://localhost:8090',
+        'Access-Control-Request-Method': 'GET'}
 
     def test_options(self):
         '''
@@ -96,15 +95,15 @@ class PointLineReleaseTests(ReleaseTests):
         Tests out the Gnome Release object API
     '''
     req_data = {
-                'obj_type': 'gnome.spills.release.PointLineRelease',
-                'num_elements': 100,
-                'num_released': 0,
-                'release_time': '2014-04-15T13:22:20.930570',
-                'start_time_invalid': True,
-                'end_release_time': '2014-04-15T13:22:20.930570',
-                'end_position': (28.0, -78.0, 0.0),
-                'start_position': (28.0, -78.0, 0.0),
-                }
+        'obj_type': 'gnome.spills.release.PointLineRelease',
+        'num_elements': 100,
+        'num_released': 0,
+        'release_time': '2014-04-15T13:22:20.930570',
+        'start_time_invalid': True,
+        'end_release_time': '2014-04-15T13:22:20.930570',
+        'end_position': (28.0, -78.0, 0.0),
+        'start_position': (28.0, -78.0, 0.0),
+    }
 
     def test_get_valid_id(self):
         # 1. create the object by performing a put with no id
@@ -192,7 +191,7 @@ class BasicReleaseTests(ReleaseTests):
 
     def perform_updates(self, json_obj):
         json_obj['custom_positions'] = [[100.0, 100.0, 0.0],
-                                      [100.0, 100.0, 0.0]]
+                                        [100.0, 100.0, 0.0]]
 
     def check_updates(self, json_obj):
         assert all([i == j

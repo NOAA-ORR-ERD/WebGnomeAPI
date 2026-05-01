@@ -82,6 +82,15 @@ def set_session_object(obj, request, obj_id=None):
 
 def acquire_session_lock(request):
     session_lock = get_session_object('gnome_session_lock', request)
+    if session_lock is None:
+        # Rebuild in-memory lock state when workers restart or when session
+        # objects have not yet been initialized on this process.
+        init_session_objects(request, force=True)
+        session_lock = get_session_object('gnome_session_lock', request)
+
+    if session_lock is None:
+        raise RuntimeError('Could not acquire session lock: invalid session')
+
     session_lock.acquire()
 
     return session_lock

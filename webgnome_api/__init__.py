@@ -27,9 +27,10 @@ from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.5"
+__version__ = "1.1.6dev"
 
 logging.basicConfig()
+log = logging.getLogger(__name__)
 
 supported_ocean_models = ['ESPC',
                           'TAMU',
@@ -86,6 +87,31 @@ class WebgnomeFormatter(Formatter):
 
 class DummySession(object):
     session_id = 'DummySession'
+
+
+def parse_redis_uri(settings):
+    """
+    Parse CACHE_URI environment variable and update settings.
+    CACHE_URI format: rediss://[:password@]hostname:port[/db]
+    or redis://[:password@]hostname:port[/db]
+    Falls back to existing settings if CACHE_URI is not present.
+    """
+    redis_uri = os.environ.get('CACHE_URI')
+    if redis_uri:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(redis_uri)
+
+            # Use the full URL for redis-py connection options (TLS, auth, db).
+            settings['redis.sessions.url'] = redis_uri
+
+            if parsed.hostname:
+                settings['redis.sessions.host'] = parsed.hostname
+
+            if parsed.port:
+                settings['redis.sessions.port'] = str(parsed.port)
+        except Exception as e:
+            print(f'Warning: Failed to parse CACHE_URI: {e}. Using config file values.')
 
 
 def reconcile_directory_settings(settings):
@@ -183,11 +209,15 @@ def start_session_cleaner(settings):
         So we need to hook directly into the Redis publish/subscribe
         functionality.  Here we will look for expired key events.
     '''
-    host = settings.get('redis.sessions.host', 'localhost')
-    port = int(settings.get('redis.sessions.port', 6379))
     session_dir = settings.get('session_dir', './models/session')
 
-    redis = StrictRedis(host=host, port=port)
+    cache_uri = os.environ.get('CACHE_URI')
+    if cache_uri:
+        redis = StrictRedis.from_url(cache_uri)
+    else:
+        host = settings.get('redis.sessions.host', 'localhost')
+        port = int(settings.get('redis.sessions.port', 6379))
+        redis = StrictRedis(host=host, port=port)
 
     def event_handler(msg, session_dir=session_dir):
         session_id = msg['data']
@@ -210,6 +240,30 @@ def start_session_cleaner(settings):
 
     settings['redis_pubsub_thread'] = pubsub.run_in_thread(sleep_time=60.0,
                                                            daemon=True)
+
+
+def configure_redis_keyspace_notifications(settings):
+    """
+    Best-effort Redis config so expired-session key events are emitted.
+    Some managed Redis providers block CONFIG commands; do not fail startup.
+    """
+    cache_uri = os.environ.get('CACHE_URI')
+    redis_conn_kwargs = {
+        'socket_connect_timeout': 3,
+        'socket_timeout': 3
+    }
+
+    try:
+        if cache_uri:
+            redis = StrictRedis.from_url(cache_uri, **redis_conn_kwargs)
+        else:
+            host = settings.get('redis.sessions.host', 'localhost')
+            port = int(settings.get('redis.sessions.port', 6379))
+            redis = StrictRedis(host=host, port=port, **redis_conn_kwargs)
+
+        redis.config_set("notify-keyspace-events", "Ex")
+    except Exception as exc:
+        log.warning('Could not set Redis notify-keyspace-events=Ex: %s', exc)
 
 
 def server_factory(global_config, host, port):
@@ -273,8 +327,10 @@ def main(global_config, **settings):
         print("libgoods package not available "
               "-- its functionality will not be there")
 
+    parse_redis_uri(settings)
     reconcile_directory_settings(settings)
     load_cors_origins(settings, 'cors_policy.origins')
+    configure_redis_keyspace_notifications(settings)
     start_session_cleaner(settings)
 
     config = Configurator(settings=settings)

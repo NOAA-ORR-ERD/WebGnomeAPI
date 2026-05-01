@@ -1,55 +1,155 @@
 variables:
   PYTHON_VER: '3.13'
+  PYGNOME_VER: develop
+  LIBGOODS_VER: develop
+  WEBGNOME_API_VER: $CI_COMMIT_REF_NAME
+  WEBGNOME_CLIENT_VER: develop-fargate
   PYGNOME_PROJECT_ID: '7'
-  APP_NETWORK: webgnome_net
-  UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-
-# Ok, here is the strategy I believe we want for our pipeline.
-# - First, we test our sources.
-#
-# - Next, we build a temporarily named docker image.  We don't want to have
-#   an officially named image that isn't passing the tests.
-#
-# - Next, we test the docker image that was built.
-#
-# - Next, we rename the docker image to its official name in the registry.
-#
-# - Next, we deploy the docker image
-#
-# Note: we would like to cleanup the temporary docker tag from the container
-#       registry, but the solution provided by the GitLab docs cleans everything
-#       up, including the tag we want to keep.
 
 stages:
-  - util
-  - test_src
-  - build_temp_img
-  - test_img
-  - rename_temp_img
-  #- remove_temp_img
+  - build
+  - test
   - deploy
-  - maintenance
 
-services:
-  - redis:latest
+.build_template: &build_definition
+  stage: build
+  image: docker:dind
+  services:
+    - docker:dind
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
+  script:
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
+      ${CI_REGISTRY}
+    - >
+      docker build \
+        --build-arg git_commit_short_hash=${CI_COMMIT_SHORT_SHA} \
+        --build-arg build_env=${TARGET_ENV} \
+        --build-arg PYTHON_VER=${PYTHON_VER} \
+        --build-arg PYGNOME_VER=${PYGNOME_VER} \
+        --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
+        --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
+        --build-arg WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER} \
+        --build-arg BUILD_KEY=${BUILD_KEY} \
+        --target ${TARGET_ENV} \
+        --no-cache \
+        -f dockerfile.mono \
+        -t "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" .
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+    - echo "GCR_IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  tags:
+    - 'docker'
+    - 'aws'
+    - 'us-west-2'
 
-test_src:
-  stage: test_src
+.deploy_template: &deploy_definition
+  stage: deploy
+  image: docker:dind
+  when: manual
+  services:
+    - docker:dind
+  before_script:
+    - unset DOCKER_AUTH_CONFIG
+  script:
+    - apk --update --no-cache add bash aws-cli
+    # Pull image from GCR using GCR_IMAGE from previous job.
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}"
+      "${CI_REGISTRY}"
+    - echo "Pulling $GCR_IMAGE"
+    - docker pull "$GCR_IMAGE"
+    - docker logout "${CI_REGISTRY}"
+    - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login
+      --username AWS --password-stdin "$ECR_REPO_URI"
+    - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:latest"
+    - docker tag "$GCR_IMAGE" "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
+    - echo "Pushing $GCR_IMAGE to ${ECR_REPO_URI}"
+    - docker push "${ECR_REPO_URI}:latest"
+    - docker push "${ECR_REPO_URI}:$CI_COMMIT_SHORT_SHA"
+    - |
+      for SERVICE in $FARGATE_SERVICES; do
+        SERVICE_NAME=$(echo $SERVICE | awk -F: '{print $1}')
+        SERVICE_COUNT=$(echo $SERVICE | awk -F: '{print $2}')
+        aws ecs update-service --cluster "$FARGATE_CLUSTER" \
+            --service "$SERVICE_NAME" \
+            --desired-count "$SERVICE_COUNT" \
+            --force-new-deployment --debug
+      done
+  tags:
+    - 'docker'
+    - 'aws'
+    - 'us-west-2'
+
+.dev: &dev_definition
+  environment:
+    name: dev
+    url: https://gnome-dev.nos-orr.net
+  variables:
+    API_URL: https://gnome-dev.nos-orr.net
+    TARGET_ENV: dev
   rules:
-    - if:
-        ($CI_COMMIT_BRANCH != "develop" && $CI_COMMIT_BRANCH != "main" &&
-        $CI_COMMIT_BRANCH != "production")
-      variables:
-        UPSTREAM_BRANCH: 'develop'
-    - if: $CI_PIPELINE_SOURCE == "pipelines"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
-    - if: $CI_PIPELINE_SOURCE == "schedules"
+    - if: $CI_COMMIT_REF_NAME
+
+.prod: &prod_definition
+  environment:
+    name: prod
+    url: https://gnome.orr.noaa.gov
+  variables:
+    API_URL: https://gnome.orr.noaa.gov
+    TARGET_ENV: prod
+    PYGNOME_VER: production
+    LIBGOODS_VER: develop
+    WEBGNOME_API_VER: fargate-migration
+    WEBGNOME_CLIENT_VER: production
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
+    - if: $CI_COMMIT_TAG # only run for tags
+
+Development Build Docker Image:
+  <<: *build_definition
+  <<: *dev_definition
+
+Production Build Docker Image:
+  <<: *build_definition
+  <<: *prod_definition
+
+Development Push to ECR and Update Fargate Service:
+  <<: *deploy_definition
+  <<: *dev_definition
+
+Production Push to ECR and Update Fargate Service:
+  <<: *deploy_definition
+  <<: *prod_definition
+
+Test Built image:
+  stage: test
+  image:
+    name: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+    entrypoint: ['']
+  allow_failure: true
   tags:
     - docker
-  image: registry.orr.noaa.gov/gnome/pygnome:$UPSTREAM_BRANCH
-  before_script:
-    - apt-get install -y curl unzip
+  script:
+    - apt update
+    - apt install redis -y
+    - redis-server --daemonize yes
+    - rm -rf ./location_files
+    - ln -s /location_files ./location_files
+    - /env/bin/pip install pytest webtest>=2.0 testfixtures
+    - /env/bin/pytest --pyargs webgnome_api
+  <<: *dev_definition
+
+Test Source:
+  stage: test
+  tags:
+    - docker
+  image: registry.orr.noaa.gov/gnome/pygnome:$PYGNOME_VER
+  <<: *dev_definition
   script:
     ## We want to get the artifacts from the pygnome compile job, which is
     ## a different CI pipeline altogether where:
@@ -57,19 +157,19 @@ test_src:
     ## - $CI_COMMIT_BRANCH is the branch
     ## - compile_pygnome is the job_name
     - >
-      curl
-      "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
-      --output artifacts.zip
-    - ls -l artifacts.zip || echo "no file artifacts.zip"
-    - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
-      artifacts.zip"
-    - head artifacts.zip
+    #   curl
+    #   "https://gitlab.orr.noaa.gov/api/v4/projects/${PYGNOME_PROJECT_ID}/jobs/artifacts/${CI_COMMIT_BRANCH}/download?job=compile_pygnome&&job_token=${CI_JOB_TOKEN}"
+    #   --output artifacts.zip
+    # - ls -l artifacts.zip || echo "no file artifacts.zip"
+    # - unzip artifacts.zip "py_gnome/*" -d py_gnome || echo "can't read
+    #   artifacts.zip"
+    # - head artifacts.zip
 
     - apt-get install -y redis
     - redis-server --daemonize yes
 
     # get libgoods
-    - git clone --depth 1 -b $UPSTREAM_BRANCH
+    - git clone --depth 1 -b $LIBGOODS_VER
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
 
     # install all the requirements
@@ -83,834 +183,3 @@ test_src:
     - python location_files/test_locations.py
     - conda env export > webgnome_api/views/deployed_environment.yaml
     - cd webgnome_api/tests && pytest
-  #   - conda list > conda_packages.txt
-  # artifacts:
-  #   when: always
-  #   expire_in: 15 days
-  #   paths:
-  #     - ./conda_packages.txt
-
-build_temp_img:
-  stage: build_temp_img
-  only:
-    - main
-    - develop
-    - production
-  except:
-    - pipelines
-    - schedules
-  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new
-  tags:
-    - docker
-  before_script:
-    - unset DOCKER_AUTH_CONFIG
-  script:
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
-
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
-
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker build -f dockerfile --no-cache --build-arg
-      CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH --build-arg PYTHON_VER=$PYTHON_VER -t
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp .
-
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-
-test_img:
-  stage: test_img
-  only:
-    - develop
-    - main
-    - production
-  except:
-    - pipelines
-    - schedules
-  tags:
-    - docker
-  image:
-    name: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    entrypoint: ['']
-  script:
-    - cd /webgnomeapi
-    - conda install -y --file conda_requirements_test.txt
-    - redis-server --daemonize yes
-    - pytest --pyargs webgnome_api
-#    - pytest webgnome_api/tests
-
-rename_temp_img:
-  stage: rename_temp_img
-  image: registry.orr.noaa.gov/internal-container-registry/dnd-image-builder/dnd-image-builder-new
-  only:
-    - develop
-    - main
-    - production
-  except:
-    - pipelines
-    - schedules
-  tags:
-    - docker
-  before_script:
-    - unset DOCKER_AUTH_CONFIG
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-    - >
-      docker image tag
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    - docker push registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    - docker image rm
-      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-
-# Ok, this almost works, but there is a problem, in that /bin/reg will remove
-# the image and all tags associated with it, including the one we wanted to keep.
-# It looks like there will be a new tagging API soon, but not yet.
-# So we will hold off on running this task for now.
-#remove_temp_img:
-#  stage: remove_temp_img
-#  only:
-#    - develop
-#    - main
-#    - production
-#  image: docker:stable
-#  tags:
-#    - docker
-#  services:
-#    - docker:stable-dind
-#  variables:
-#    REG_SHA256: 97ca5b3105ef32fcc124c362d87721af549da444f2bb4550f7a2ecd4c9206ebe
-#    REG_VERSION: 0.16.1
-#  before_script:
-#    - apk add --no-cache curl
-#    - >
-#      curl --fail --show-error
-#      --location "https://github.com/genuinetools/reg/releases/download/v$REG_VERSION/reg-linux-386"
-#      --output /usr/local/bin/reg
-#    - echo "$REG_SHA256  /usr/local/bin/reg" | sha256sum -c -
-#    - chmod a+x /usr/local/bin/reg
-#  script:
-#    - >
-#      /usr/local/bin/reg rm -d --auth-url $CI_REGISTRY
-#      -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
-#      registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH.temp
-
-###
-###
-### Deployment tasks on gnome-dev.orr.noaa.gov
-###
-### - The deployment for gnome-dev.orr.noaa.gov will be such that any change
-###   in the develop branch will be automatically deployed to this host.
-### - In addition, the develop branch deployment can be triggered from the
-###   gnome-deploy project
-###
-###
-
-deploy_redis_dev:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
-    on_stop: stop_redis_dev
-  variables:
-    IMAGE_TAG: redis:latest
-    CONTAINER_NAME: redis
-    DB_VOLUME: redisdata
-    GIT_STRATEGY: none
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      $IMAGE_TAG
-
-stop_redis_dev:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: redis
-    GIT_STRATEGY: none
-  script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-deploy_proxy_dev:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
-    on_stop: stop_proxy_dev
-  variables:
-    IMAGE_TAG: nginx:latest
-    GIT_STRATEGY: none
-    CONTAINER_NAME: webgnome_proxy
-    PORT_MAPPING1: 443:443
-    PORT_MAPPING2: 80:80
-    GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $IMAGE_TAG
-
-    - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
-      $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
-      $GNOME_DEPLOY_FOLDER/config/nginx
-    - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-    - ls -la $GNOME_DEPLOY_FOLDER
-    - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
-    - ls -la /etc/ssl/certs/*
-    - docker service rm webgnome_api_loadbalancer || true
-    - docker service create --name webgnome_api_loadbalancer --network
-      $APP_NETWORK --mount
-      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
-      haproxy:2.3
-    - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
-      $PORT_MAPPING1 -p $PORT_MAPPING2 --mount
-      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
-      --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
-      $IMAGE_TAG
-    - docker service ls
-
-stop_proxy_dev:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    action: stop
-  variables:
-    GIT_STRATEGY: none
-    CONTAINER_NAME: webgnome_proxy
-  script:
-    - docker service rm $CONTAINER_NAME
-    - docker service rm webgnome_api_loadbalancer
-
-deploy_api_dev:
-  stage: deploy
-  needs: [deploy_redis_dev]
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
-    on_stop: stop_api_dev
-  variables:
-    IMAGE_TAG: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    CONTAINER_NAME: webgnome_api
-    PORT_MAPPING: 80:80
-    MODELS_VOLUME: webgnome_models
-    GIT_STRATEGY: none
-    API_SCALE: 3
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
-      create $MODELS_VOLUME
-    - docker pull $IMAGE_TAG
-    - docker swarm init || true
-    - docker service rm $CONTAINER_NAME || true
-    - >
-      docker service create 
-      --name $CONTAINER_NAME --network $APP_NETWORK --mount
-      source=$MODELS_VOLUME,destination=/webgnomeapi/models 
-      --mount source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
-      --network $APP_NETWORK --endpoint-mode dnsrr --replicas=$API_SCALE
-      $IMAGE_TAG
-    - docker service ps $CONTAINER_NAME
-    - docker service logs $CONTAINER_NAME
-
-stop_api_dev:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-dev
-    - deploy
-  environment:
-    name: dev-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: webgnome_api
-    GIT_STRATEGY: none
-  script:
-    - docker service rm $CONTAINER_NAME
-
-###
-###
-### Deployment tasks on gnome-stage.orr.noaa.gov
-###
-### - The deployment for gnome-stage.orr.noaa.gov will be such that any change
-###   in the main branch will be automatically deployed to this host.
-### - In addition, the main branch deployment can be triggered from the
-###   gnome-deploy project
-###
-###
-
-deploy_redis_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
-    on_stop: stop_redis_stage
-  variables:
-    IMAGE_TAG: redis:latest
-    CONTAINER_NAME: redis
-    DB_VOLUME: redisdata
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $DB_VOLUME >/dev/null 2>&1 || docker volume create
-      $DB_VOLUME
-    - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK -v
-      $DB_VOLUME:/data --restart unless-stopped $IMAGE_TAG
-
-stop_redis_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: redis
-  script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-deploy_proxy_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
-    on_stop: stop_proxy_stage
-  variables:
-    IMAGE_TAG: nginx:latest
-    CONTAINER_NAME: webgnome_proxy
-    PORT_MAPPING1: 443:443
-    PORT_MAPPING2: 80:80
-    GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-    - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
-      $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
-      $GNOME_DEPLOY_FOLDER/config/nginx
-    - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-    - ls -la $GNOME_DEPLOY_FOLDER
-    - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
-    - ls -la /etc/ssl/certs/*
-    - >
-      docker run -d --name $CONTAINER_NAME --network $APP_NETWORK --restart
-      unless-stopped -p $PORT_MAPPING1 -p $PORT_MAPPING2 -v
-      $GNOME_DEPLOY_FOLDER/config/nginx:/etc/nginx/ -v
-      /etc/ssl/certs:/etc/ssl/certs $IMAGE_TAG
-
-stop_proxy_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: webgnome_proxy
-  script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-deploy_api_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
-    on_stop: stop_api_stage
-  variables:
-    IMAGE_TAG: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    CONTAINER_NAME: webgnome_api
-    PORT_MAPPING: 9898:9898
-    MODELS_VOLUME: webgnome_models
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - >
-      docker network inspect $APP_NETWORK >/dev/null 2>&1 || docker network
-      create -d bridge $APP_NETWORK
-    - >
-      docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
-      create $MODELS_VOLUME
-    - docker pull $IMAGE_TAG
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-    - >
-      docker run -d --network $APP_NETWORK --name $CONTAINER_NAME -p
-      $PORT_MAPPING -v $MODELS_VOLUME:/webgnomeapi/models --restart
-      unless-stopped $IMAGE_TAG
-    - docker ps
-    - docker logs $CONTAINER_NAME
-
-stop_api_stage:
-  stage: deploy
-  rules:
-    - if:
-        $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE =~
-        /\b(push|merge_request_event|pipeline|schedule|web)\b/
-  when: manual
-  tags:
-    - gnome-stage
-    - deploy
-  environment:
-    name: stage-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: webgnome_api
-  script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-###
-###
-### Deployment tasks on gnome.orr.noaa.gov
-###
-### - The deployment for gnome.orr.noaa.gov will be such that changes in the
-###   production branch will *not* be automatically deployed to the host.
-###   Rather, the deployment will be handled as a multi-project pipeline
-###   controlled from the CI pipeline of the gnome-deploy project.
-###
-###
-
-deploy_redis_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-    on_stop: stop_redis_production
-  variables:
-    IMAGE_TAG: redis:latest
-    CONTAINER_NAME: redis
-    DB_VOLUME: redisdata
-    GIT_STRATEGY: none
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      $IMAGE_TAG
-
-stop_redis_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  when: manual
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: redis
-    GIT_STRATEGY: none
-  script:
-    - docker stop $CONTAINER_NAME && docker container rm --volumes
-      $CONTAINER_NAME
-
-deploy_proxy_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-    on_stop: stop_proxy_production
-  variables:
-    IMAGE_TAG: nginx:latest
-    CONTAINER_NAME: webgnome_proxy
-    GIT_STRATEGY: none
-    PORT_MAPPING1: 443:443
-    PORT_MAPPING2: 80:80
-    GNOME_DEPLOY_FOLDER: /data/webgnome/gnome-deploy
-    GNOME_TESTDATA_FOLDER: /data/gnome_testdata
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $IMAGE_TAG
-
-    - if [ -d $GNOME_DEPLOY_FOLDER ]; then rm -rf $GNOME_DEPLOY_FOLDER; fi
-    - git clone --depth 1 -b $CI_COMMIT_BRANCH
-      https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/gnome-deploy.git
-      $GNOME_DEPLOY_FOLDER
-    - >
-      chmod go+rx $GNOME_DEPLOY_FOLDER $GNOME_DEPLOY_FOLDER/config
-      $GNOME_DEPLOY_FOLDER/config/nginx
-    - chmod go+rw $GNOME_DEPLOY_FOLDER/config/nginx/*
-    - ls -la $GNOME_DEPLOY_FOLDER
-    - ls -la $GNOME_DEPLOY_FOLDER/config/nginx
-    - ls -la /etc/ssl/certs/*
-    - docker service rm webgnome_api_loadbalancer || true
-    - >
-      docker service create --name webgnome_api_loadbalancer --network
-      $APP_NETWORK --mount
-      type=bind,source=$GNOME_DEPLOY_FOLDER/config/haproxy,destination=/usr/local/etc/haproxy
-      haproxy:2.3
-    - docker service rm $CONTAINER_NAME || true
-    - >
-      docker service create --name $CONTAINER_NAME --network $APP_NETWORK -p
-      $PORT_MAPPING1 -p $PORT_MAPPING2 --mount
-      type=bind,source=$GNOME_DEPLOY_FOLDER/config/nginx,destination=/etc/nginx/
-      --mount
-      type=bind,source=$GNOME_TESTDATA_FOLDER,destination=/usr/share/nginx/html/py_gnome_testdata/
-      --mount type=bind,source=/etc/ssl/certs,destination=/etc/ssl/certs
-      $IMAGE_TAG
-    - docker service ls
-
-stop_proxy_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  when: manual
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    action: stop
-  variables:
-    GIT_STRATEGY: none
-    CONTAINER_NAME: webgnome_proxy
-  script:
-    - docker service rm $CONTAINER_NAME
-    - docker service rm webgnome_api_loadbalancer
-
-deploy_api_production:
-  stage: deploy
-  needs: [deploy_redis_production]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-    on_stop: stop_api_production
-  variables:
-    IMAGE_TAG: registry.orr.noaa.gov/gnome/webgnomeapi:$CI_COMMIT_BRANCH
-    CONTAINER_NAME: webgnome_api
-    PORT_MAPPING: 9898:9898
-    GIT_STRATEGY: none
-    API_SCALE: 40
-    MODELS_VOLUME: webgnome_models
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker volume inspect $MODELS_VOLUME >/dev/null 2>&1 || docker volume
-      create $MODELS_VOLUME
-    - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      --mount source=$MODELS_VOLUME,destination=/webgnomeapi/models --mount
-      source=libgoods-cache,destination=/webgnomeapi/libgoods-cache
-      --endpoint-mode dnsrr --replicas=$API_SCALE $IMAGE_TAG
-    - docker service ps $CONTAINER_NAME
-    - docker service logs $CONTAINER_NAME
-
-stop_api_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  when: manual
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: webgnome_api
-    GIT_STRATEGY: none
-  script:
-    - docker service rm $CONTAINER_NAME
-
-deploy_docs_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-    on_stop: stop_docs_production
-  variables:
-    IMAGE_TAG: registry.orr.noaa.gov/gnome/pygnome/docs
-    CONTAINER_NAME: pygnome_docs
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $IMAGE_TAG
-    - docker service rm $CONTAINER_NAME || true
-    - docker service create --name $CONTAINER_NAME --network $APP_NETWORK
-      $IMAGE_TAG
-
-stop_docs_production:
-  stage: deploy
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "pipeline"
-  when: manual
-  tags:
-    - gnome-prod
-    - deploy
-  environment:
-    name: production-deployment
-    action: stop
-  variables:
-    CONTAINER_NAME: pygnome_docs
-    GIT_STRATEGY: none
-  script:
-    - docker service rm $CONTAINER_NAME
-
-###
-###
-### Maintenance tasks
-###
-###
-
-prune_session_folders_dev:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
-  tags:
-    - gnome-dev
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_session_folders.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-prune_tmp_files_dev:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: dev-deployment
-    url: https://gnome-dev.orr.noaa.gov
-  tags:
-    - gnome-dev
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_tmp_files.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-prune_session_folders_stage:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
-  tags:
-    - gnome-stage
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_session_folders.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-prune_tmp_files_stage:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: stage-deployment
-    url: https://gnome-stage.orr.noaa.gov
-  tags:
-    - gnome-stage
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_tmp_files.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-prune_session_folders_production:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-  tags:
-    - gnome-prod
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_session_folders.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-prune_tmp_files_production:
-  stage: maintenance
-  image: registry.orr.noaa.gov/erd/centos-conda/centos7-python$PYTHON_VER
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE == "schedule"
-  environment:
-    name: production-deployment
-    url: https://gnome.orr.noaa.gov
-  tags:
-    - gnome-prod
-    - deploy
-  variables:
-    CONTAINER_NAME: webgnome_api
-    SCRIPT_NAME: ./prune_old_tmp_files.sh
-  script:
-    - docker exec $(docker ps -q -f name=$CONTAINER_NAME|head -n 1) /bin/bash
-      $SCRIPT_NAME
-
-.docker tidy:
-  stage: util
-  when: manual
-  script:
-    - docker system prune -f -a --volumes
-
-docker prod tidy:
-  extends: '.docker tidy'
-  only:
-    refs:
-      - production
-  tags:
-    - deploy
-    - gnome-prod
-
-docker dev tidy:
-  extends: '.docker tidy'
-  only:
-    refs:
-      - develop
-  tags:
-    - deploy
-    - gnome-dev
-
-docker stage tidy:
-  extends: '.docker tidy'
-  only:
-    refs:
-      - main
-  tags:
-    - deploy
-    - gnome-stage
