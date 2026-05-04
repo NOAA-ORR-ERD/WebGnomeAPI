@@ -90,7 +90,7 @@ stages:
   variables:
     API_URL: https://gnome-dev.nos-orr.net
     TARGET_ENV: dev
-    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}-c-${WEBGNOME_CLIENT_VER}-p-${PYGNOME_VER}-l-${LIBGOODS_VER}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
@@ -107,7 +107,7 @@ stages:
     LIBGOODS_VER: develop
     WEBGNOME_API_VER: $CI_COMMIT_TAG
     WEBGNOME_CLIENT_VER: production
-    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}-c-${WEBGNOME_CLIENT_VER}-p-${PYGNOME_VER}-l-${LIBGOODS_VER}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
       when: never
