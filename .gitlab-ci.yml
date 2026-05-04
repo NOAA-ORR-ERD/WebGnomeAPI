@@ -15,10 +15,10 @@ stages:
     - docker:dind
   before_script:
     - unset DOCKER_AUTH_CONFIG
-    - '${PYGNOME_VER:=develop}'
-    - '${LIBGOODS_VER:=develop}'
+    - '${PYGNOME_VER:="develop"}'
+    - '${LIBGOODS_VER:="develop"}'
     - '${WEBGNOME_API_VER:=$CI_COMMIT_REF_NAME}'
-    - '${WEBGNOME_CLIENT_VER:=develop}'
+    - '${WEBGNOME_CLIENT_VER:="develop"}'
   script:
     - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
       ${CI_REGISTRY}
@@ -54,10 +54,10 @@ stages:
     - docker:dind
   before_script:
     - unset DOCKER_AUTH_CONFIG
-    - '${PYGNOME_VER:=develop}'
-    - '${LIBGOODS_VER:=develop}'
+    - '${PYGNOME_VER:="develop"}'
+    - '${LIBGOODS_VER:="develop"}'
     - '${WEBGNOME_API_VER:=$CI_COMMIT_REF_NAME}'
-    - '${WEBGNOME_CLIENT_VER:=develop}'
+    - '${WEBGNOME_CLIENT_VER:="develop"}'
   script:
     - apk --update --no-cache add bash aws-cli
     # Pull image from GCR using GCR_IMAGE from previous job.
