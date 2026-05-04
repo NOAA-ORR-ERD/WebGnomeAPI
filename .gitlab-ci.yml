@@ -176,6 +176,7 @@ Test Source:
     #   artifacts.zip"
     # - head artifacts.zip
 
+    - apt-get update
     - apt-get install -y redis
     - redis-server --daemonize yes
 
