@@ -1,6 +1,8 @@
 variables:
   PYTHON_VER: '3.13'
   # These version should be the "evergreen" targets for latest of everything
+  PYGNOME_VER: develop
+  LIBGOODS_VER: develop
   PYGNOME_PROJECT_ID: '7'
 
 stages:
@@ -15,8 +17,6 @@ stages:
     - docker:dind
   before_script:
     - unset DOCKER_AUTH_CONFIG
-    - if [ -z "$PYGNOME_VER"]; then PYGNOME_VER="develop"; fi
-    - if [ -z "$LIBGOODS_VER"]; then LIBGOODS_VER="develop"; fi
     - if [ -z "$WEBGNOME_API_VER"]; then
       WEBGNOME_API_VER=${CI_COMMMIT_REF_NAME}; fi
     - if [ -z "$WEBGNOME_CLIENT_VER"]; then WEBGNOME_CLIENT_VER="develop"; fi
@@ -55,8 +55,6 @@ stages:
     - docker:dind
   before_script:
     - unset DOCKER_AUTH_CONFIG
-    - if [ -z "$PYGNOME_VER"]; then PYGNOME_VER="develop"; fi
-    - if [ -z "$LIBGOODS_VER"]; then LIBGOODS_VER="develop"; fi
     - if [ -z "$WEBGNOME_API_VER"]; then
       WEBGNOME_API_VER=${CI_COMMMIT_REF_NAME}; fi
     - if [ -z "$WEBGNOME_CLIENT_VER"]; then WEBGNOME_CLIENT_VER="develop"; fi
