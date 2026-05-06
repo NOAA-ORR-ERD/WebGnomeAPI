@@ -1,0 +1,340 @@
+# This Docker Compose file is an equivalent representation of the GitLab CI jobs.
+# It defines the services, networks, and volumes for the application stack.
+# NOTE: This setup is intended for Docker Swarm mode, as indicated by the 'deploy'
+# key and the use of 'docker service' commands in the original script.
+# To deploy this stack, you would use: docker stack deploy -c docker-compose.yml <stack_name>
+
+services:
+  redis:
+    image: redis:7.2.4
+    networks:
+      - app-network
+    volumes:
+      - redisdata:/data
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  client:
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/mono:${CI_COMMIT_BRANCH:-latest}
+    networks:
+      - app-network
+    entrypoint: [""]
+    command: /bin/bash -c 'cd /webgnomeclient && /env/bin/python -m http.server'
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  api:
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/mono:${CI_COMMIT_BRANCH:-latest}
+    networks:
+      - app-network
+    volumes:
+      - models:/webgnomeapi/models
+    depends_on:
+      - redis
+    configs:
+      - source: api_config
+        target: /config.ini
+    deploy:
+      replicas: ${API_SCALE:-10} # Defaulting to 10 if not set, original was 40
+      endpoint_mode: dnsrr
+      restart_policy:
+        condition: on-failure
+
+  api_lb:
+    image: haproxy:2.4
+    networks:
+      - app-network
+    depends_on:
+      - api
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    configs:
+      - source: haproxy_config
+        target: /usr/local/etc/haproxy/haproxy.cfg
+
+  proxy:
+    image: registry.orr.noaa.gov/gnome/webgnomeapi/proxy:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - app-network
+    depends_on:
+      - api_lb
+      - goods
+      - docs
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager] # Often proxies are placed on manager nodes
+      restart_policy:
+        condition: on-failure
+    configs:
+      - source: nginx_config
+        target: /etc/nginx/nginx.conf
+
+  docs:
+    image: registry.orr.noaa.gov/gnome/pygnome/docs
+    networks:
+      - app-network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  goods:
+    image: registry.orr.noaa.gov/gnome/goods/goods:master
+    networks:
+      - app-network
+    deploy:
+      replicas: 3
+      endpoint_mode: dnsrr
+      restart_policy:
+        condition: on-failure
+
+# Define the shared network for all services
+networks:
+  app-network:
+    name: ${APP_NETWORK:-app_default_network}
+
+# Define the named volumes for persistent data
+volumes:
+  redisdata:
+    name: redisdata
+  models:
+    name: webgnom/e_models
+
+configs:
+  api_config:
+    content: |
+      [app:webgnome_api]
+      use = egg:webgnome_api
+
+      pyramid.reload_templates = true
+      pyramid.debug_authorization = false
+      pyramid.debug_notfound = false
+      pyramid.debug_routematch = false
+      pyramid.debug_templates = true
+      pyramid.default_locale_name = en
+
+      pyramid.includes = cornice
+                        pyramid_session_redis
+
+      cors_policy.origins = *
+                      
+      redis.sessions.host = redis
+      redis.sessions.port = 6379
+      redis.sessions.secret = 12342C48
+      redis.sessions.timeout = 259200
+
+      # configured paths to server resources
+      install_path = %(here)s
+      model_data_dir = /models
+      session_dir = /models/session
+      locations_dir = /location_files
+      save_file_dir = %(here)s/save_files
+      help_dir = /help
+
+      # This configuration is used to setup a file share with the GOODS server
+      # The current setting is just for testing.
+      goods_url = https://gnome.orr.noaa.gov
+      goods_dir = models
+
+      can_persist_uploads = false
+      max_upload_size = 2500 * 1024 * 1024
+
+      [pipeline:main]
+      pipeline =
+          gzip
+          webgnome_api
+
+      [server:main]
+      use = egg:webgnome_api#srv
+      host = 0.0.0.0
+      port = 80
+
+      [filter:gzip]
+      use = egg:Paste#gzip
+      compress_level = 6
+
+      # Logging Configuration
+
+      [loggers]
+      keys = root, webgnome_api, gnome
+
+      [handlers]
+      keys = console, msgs_file, gnome_file, webgnome_api_file, email
+
+      [formatters]
+      keys = generic, gevent
+
+      [logger_root]
+      level = DEBUG
+      handlers = console, msgs_file
+
+      [logger_webgnome_api]
+      level = DEBUG
+      handlers = webgnome_api_file
+      qualname = webgnome_api
+
+      [logger_gnome]
+      level = INFO
+      handlers = gnome_file
+      qualname = gnome
+
+      [handler_console]
+      class = StreamHandler
+      args = (sys.stderr,)
+      level = NOTSET
+      formatter = gevent
+
+      [handler_msgs_file]
+      class = handlers.RotatingFileHandler
+      args = (r"%(here)s/messages.log", "a", 1000000, 3)
+      level = NOTSET
+      formatter = gevent
+
+      [handler_webgnome_api_file]
+      class = handlers.RotatingFileHandler
+      args = (r"%(here)s/webgnome_api.log", "w", 1000000, 1)
+      level = NOTSET
+      formatter = generic 
+
+      [handler_gnome_file]
+      class = handlers.RotatingFileHandler
+      args = (r"%(here)s/gnome.log", "w", 1000000, 1)
+      level = NOTSET
+      formatter = generic 
+
+      [handler_email]
+      class = handlers.SMTPHandler
+      args = (('mta.nems.noaa.gov', 25), '"APPLICATION ALERT" <webgnome@hazweb2>', ['Naomi.Wilkins@noaa.gov', 'jay.hennen@noaa.gov'], 'New Critical Event From [WebGnome]')
+      level = ERROR
+      formatter = generic
+
+      [formatter_gevent]
+      class = webgnome_api.WebgnomeFormatter
+      format = %(asctime)s %(levelname)-5.5s %(session_hash)s [%(name)s] %(message)s
+
+      [formatter_generic]
+      class = pyramid_log.Formatter
+      format = %(asctime)s %(levelname)-5.5s %(request.session_hash|<no session>)s [%(name)s] %(message)s
+
+  haproxy_config:
+    content: |
+      resolvers docker
+          nameserver dns1 127.0.0.11:53
+          accepted_payload_size 8192
+          resolve_retries 3
+          timeout resolve 1s
+          timeout retry   1s
+          hold other      10s
+          hold refused    10s
+          hold nx         10s
+          hold timeout    10s
+          hold valid      10s
+          hold obsolete   10s
+
+      defaults
+          timeout connect 10s
+          timeout client 30s
+          timeout server 30s
+          log global
+          mode http
+          option httplog
+
+      frontend webgnome_api
+        bind :80
+        default_backend webgnome_apis
+
+      backend webgnome_apis
+        balance leastconn
+        cookie SERVER insert indirect nocache dynamic
+        dynamic-cookie-key pengquinscantflybuttheycaninmyheartbecausetheyarebeautifulmonochromaticanimals8293072940181248961289371029847192568947
+        server-template api 40 api:80 check resolvers docker init-addr libc,none
+  nginx_config:
+    content: |
+      events {
+          worker_connections 4096;
+      }
+
+      http {
+          resolver 127.0.0.11 valid=30s ipv6=off;
+
+          upstream goods_loadbalance {
+              least_conn;
+              server goods:5005;
+          }
+
+          server {
+              listen 443 ssl;
+              server_name gnome.orr.noaa.gov;
+              ssl_certificate /etc/ssl/certs/orr.noaa.gov.crt;
+              ssl_certificate_key /etc/ssl/certs/orr.noaa.gov.key;
+              ssl_protocols TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+              client_max_body_size 20000G;
+              add_header X-Frame-Options "SAMEORIGIN";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+              root /usr/share/nginx/html;
+              resolver 127.0.0.11:53 ipv6=off valid=5s;
+
+              location /socket.io {
+                  proxy_http_version 1.1;
+                  proxy_pass http://api_lb;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "Upgrade";
+              }
+
+              location /logger {
+                  proxy_http_version 1.1;
+                  rewrite ^/api(.*)$ $1 break;
+                  proxy_pass http://api_lb;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "Upgrade";
+              }
+
+              location /step_socket {
+                  proxy_http_version 1.1;
+                  rewrite ^/api(.*)$ $1 break;
+                  proxy_pass http://api_lb;
+                  proxy_set_header Upgrade $$http_upgrade;
+                  proxy_set_header Connection "Upgrade";
+              }
+
+              location /api {
+                  rewrite ^/api(.*)$ $1 break;
+                  proxy_pass http://api_lb;
+              }
+
+              location /doc/pygnome {
+                  rewrite ^/doc/pygnome(.*)$ $1 break;
+                  proxy_pass http://docs;
+              }
+
+              location /py_gnome_testdata {
+                  autoindex on;
+              }
+
+              location / {
+                  set $$client "http://client:8000";
+                  proxy_pass $$client;
+              }
+
+              location /goods {
+                  rewrite ^/goods/?(.*)$ /$1 break;
+                  proxy_pass http://goods_loadbalance;
+                  proxy_read_timeout 1800;
+                  proxy_connect_timeout 1800;
+                  proxy_send_timeout 1800;
+                  send_timeout 1800;
+              }
+
+          }
+      }
