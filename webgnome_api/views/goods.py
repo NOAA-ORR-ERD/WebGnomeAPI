@@ -370,10 +370,10 @@ def goods_request(request):
         return new_req.to_response()
 
     elif command == 'cancel':
-        req_obj.cancel_request()
         if req_obj.complete_event.is_set():
             # if the request is already complete, we can remove it from the session objects
             del session_objs[req_id]
+        req_obj.cancel_request()
         return req_obj.to_response()
 
     elif command == 'retry':
@@ -630,7 +630,11 @@ class GOODSRequest(object):
     def cancel_request(self):
         'terminate any running processes or threads and mark request as dead'
         self.cancel_event.set()
-        self.state = 'dead'
+        if self.state not in ('error', 'finished', 'dead'):
+            self.state = 'error'
+        else:
+            self.state = 'dead'
+        self.message = 'Request cancelled by user'
         if self.subset_process:
             self.subset_process.terminate()
         if self.request_process:
@@ -662,17 +666,19 @@ class GOODSRequest(object):
                                           args=(request_args, mq, self.outpath),
                                           daemon=True)
             self.subset_process.start()
+            counter = 180
+            timeout = 180
             try:
                 status = mq.get(timeout=30)  # startup timeout (expected msg 'startup')
+                counter = 0
+                self.state = 'subsetting'
             except queue.Empty:
-                msg = f'Subset process failed to start within timeout for request {self.filename}'
-                logger.error(msg)
-                self.error('startup_timeout', msg)
+                if not self.cancel_event.is_set(): #cancelling sets this event, so only log if not cancelled
+                    msg = f'Subset process failed to start within timeout for request {self.filename}'
+                    logger.error(msg)
+                    self.error('startup_timeout', msg)
                 return
-            self.state = 'subsetting'
             msg = '0'
-            counter = 0
-            timeout = 180
             #rudimentary progress loop to capture messages from the subset process and update time elapsed until process finishes or times out
             while counter < timeout:  # 3 minutes until loop times out
                 logger.info('SUBSET PROGESS: ' + str(counter))
@@ -741,7 +747,7 @@ class GOODSRequest(object):
                 m = f'Subset process exceeded timeout of {timeout} seconds for request {self.filename}'
                 self.error('subset_timeout', m)
                 return
-            elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode or status == 'error'):
+            elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode not in (0, -15) or status == 'error'):
                 logger.info('SUBSET FAILED: '
                             f'exitcode: {self.subset_process.exitcode}')
                 self.error('subprocess_error', 'Subset process reported error: ' + repr(result))
