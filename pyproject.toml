@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -54,8 +54,10 @@ where = ["."]
 include = ["webgnome_api*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "webgnome_api.__version__"}
 readme = {file = ["README.rst"]}
+
+[tool.setuptools_scm]
+version_file = "src/libgoods/_version.py"
 
 [tool.setuptools.package-data]
 webgnome_api = ['views/deployed_environment.yaml']
