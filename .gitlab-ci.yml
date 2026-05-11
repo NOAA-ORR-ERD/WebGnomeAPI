@@ -33,7 +33,7 @@ stages:
         --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
         --build-arg WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER} \
         --build-arg BUILD_KEY=${BUILD_KEY} \
-        --build-arg OAUTH_TOKEN=${OAUTH_TOKEN} \
+        --build-arg OAUTH_TOKEN='${OAUTH_TOKEN}' \
         --target ${TARGET_ENV} \
         --no-cache \
         -f dockerfile.mono \
