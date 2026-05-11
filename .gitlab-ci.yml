@@ -2,7 +2,7 @@ variables:
   PYTHON_VER: '3.13'
   # These version should be the "evergreen" targets for latest of everything
   PYGNOME_VER: develop
-  LIBGOODS_VER: develop
+  LIBGOODS_VER: main
   PYGNOME_PROJECT_ID: '7'
 
 stages:
