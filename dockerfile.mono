@@ -60,6 +60,9 @@ ENV BASH_ENV="/root/.bashrc"
 
 RUN bash -c "python ./location_files/compile_locations.py"
 
+ARG OAUTH_TOKEN
+ENV OAUTH_TOKEN=${OAUTH_TOKEN}
+RUN echo ${OAUTH_TOKEN} > /oauth_credentials.json
 
 CMD ["bash", "/config_files/docker_entrypoint.sh"]
 
