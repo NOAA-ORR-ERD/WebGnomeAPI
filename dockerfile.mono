@@ -21,6 +21,7 @@ ENV WEBGNOME_API_VER=${WEBGNOME_API_VER}
 
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
+RUN git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/data.git -b master --depth=1 /py_gnome_testdata
 
 FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client_dev
 
@@ -41,6 +42,10 @@ COPY ./help ./help
 COPY config_files/ config_files/
 COPY config_files/crontab /etc/cron.d/aws-mirror-matrix
 COPY scripts /scripts
+RUN mkdir /webgnomeclient
+COPY --from=registry.orr.noaa.gov/gnome/pygnome/docs /usr/share/nginx/html /webgnomeclient/docs/
+COPY --from=0 /py_gnome_testdata /webgnomeclient/py_gnome_testdata/
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl && \

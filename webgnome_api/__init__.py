@@ -27,7 +27,12 @@ from webgnome_api.socket.sockserv import (WebgnomeSocketioServer,
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
 
-__version__ = "1.1.6dev"
+# using setuptools_scm to write a _version.py file
+try:
+    from ._version import version as __version__
+except ImportError:
+    __version__ = "unknown"
+
 
 logging.basicConfig()
 log = logging.getLogger(__name__)

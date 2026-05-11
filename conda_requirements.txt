@@ -17,7 +17,7 @@
 python>=3.9,<3.14
 
 setuptools<81  # need old version for Pyramid and pkg_resources
-
+setuptools-scm
 
 # numpy is not strictly needed by the API, but is by gnome, etc,
 # and adding it helps keep conda from trying to up- or down-grade it.
