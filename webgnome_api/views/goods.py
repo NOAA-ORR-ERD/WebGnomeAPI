@@ -538,7 +538,7 @@ class GOODSRequest(object):
                 'state': self.state,
                 'size': self.subset_size,
                 'time_elapsed': self.time_elapsed,
-                'message': repr(self.message),
+                'message': self.message if self.message else '',
                 'outpath': self.outpath,
                 'tshift': self.tshift,
                 'error_type': self.error_type,
