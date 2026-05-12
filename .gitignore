@@ -8,6 +8,10 @@ goods_list_models_log.txt
 
 build/
 
+# pixi
+
+.pixi/
+
 # python stuff:
 .coverage
 .pytest_cache/

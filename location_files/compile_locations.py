@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 """
-    Setup file.
+Script that compiles are the Location files.
 """
+
 import os
 import glob
 import shutil
@@ -13,31 +14,55 @@ from jsmin import jsmin
 import ujson
 import json
 
+# if you want to ignore some locations, put them here.
+LOCATIONS_TO_IGNORE = ["strait_of_juan_de_fuca",
+                       ]
+
 
 here = Path(__file__).absolute().parent
 
+locfile_dir = here
+
+def check_skip(path):
+    """
+    check if the path is in the skip list
+    """
+    # check for locations to ignore
+    skip = False
+    for pti in LOCATIONS_TO_IGNORE:
+        if pti in str(path):
+            skip = True
+            break
+    return skip
+
+
 class CompileJSON():
     def run(self):
-        paths = [here]
+        """
+        Loops through all location file dirs and compiles the JSON
+        """
         file_patterns = ['*wizard.json']
-
+        num_locations = 0
         with open(here / 'style.css', "r") as css_file:
-            for path in paths:
-                for pattern in file_patterns:
-                    file_list = [Path(dirpath) / f
-                                 for dirpath, _dirnames, files in os.walk(path)
-                                 for f in fnmatch.filter(files, pattern)]
+            for pattern in file_patterns:
+                file_list = [Path(dirpath) / f
+                             for dirpath, _dirnames, files in os.walk(locfile_dir)
+                             for f in fnmatch.filter(files, pattern)]
 
-                    for f in file_list:
-                        try:
-                            self.parse(f, css_file)
-                        except OSError as err:
-                            print(("Failed to find {}. Error {}"
-                                   .format(f, err)))
+                for f in file_list:
+                    if check_skip(f):
+                        print("skipping:", f)
+                        continue
+                    try:
+                        self.compile(f, css_file)
+                        num_locations += 1
+                    except OSError as err:
+                        print(("Failed to find {}. Error {}"
+                               .format(f, err)))
 
-            print(("Compiled {0} location(s)".format(len(file_list))))
+            print(f"Compiled {num_locations} location(s)")
 
-    def parse(self, path, css):
+    def compile(self, path, css):
         if not hasattr(self, 'paths'):
             self.paths = set()
 
