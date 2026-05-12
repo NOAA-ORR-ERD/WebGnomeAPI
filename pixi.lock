@@ -7943,8 +7943,8 @@ packages:
   timestamp: 1771382118742
 - pypi: ../libgoods
   name: libgoods
-  version: 2.1.0.dev0
-  sha256: d75f23401376530e93801ddcbd2cd3fd7adac4a3cf08ee760444b798de2c58c7
+  version: 2.2.3.dev19+g86e54da2b.d20260508
+  sha256: 7e04f8f519cd0d532e58fdafcd3688697bf4c5f36c30f094263b59f13c20d949
   requires_dist:
   - xarray-subset-grid>=0.1.0
   - netcdf4
@@ -15350,8 +15350,8 @@ packages:
   timestamp: 1770634638503
 - pypi: ./
   name: webgnome-api
-  version: 1.1.5
-  sha256: d8aa5cdd480065ba8dd6191e6a9e3e20e7475d5bfc40337df8348093012f8f42
+  version: 0.0.0
+  sha256: eebd33fb8df9c3a8c4245e16a36213d9f7b98b709cde333116696c9a5d271788
   requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/webob-1.8.9-pyhd8ed1ab_1.conda
   sha256: 75d5dc901bf80b1cdfc3ab06aa712971034a8efb426b15355c16166d0de58898

@@ -1,6 +1,7 @@
 [workspace]
-authors = ["Chris Barker <Chris.Barker@noaa.gov>"]
-channels = ["conda-forge"]
+authors = ["Chris Barker <Chris.Barker@noaa.gov>",
+           "NOAA GNOME team <orr.gnome@noaa.gov>"]
+channels = ["https://prefix.dev/conda-forge"]
 name = "webgnomeapi"
 platforms = ["win-64", "linux-64", "osx-arm64", "osx-64"]
 version = "0.1.0"
