@@ -43,7 +43,7 @@ COPY config_files/ config_files/
 COPY config_files/crontab /etc/cron.d/aws-mirror-matrix
 COPY scripts /scripts
 RUN mkdir /webgnomeclient
-COPY --from=registry.orr.noaa.gov/gnome/pygnome/docs /usr/share/nginx/html /webgnomeclient/docs/
+COPY --from=registry.orr.noaa.gov/gnome/pygnome/docs /usr/share/nginx/html /webgnomeclient/pygnome
 COPY --from=0 /py_gnome_testdata /webgnomeclient/py_gnome_testdata/
 
 RUN apt-get update && \
