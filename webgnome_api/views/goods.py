@@ -8,7 +8,6 @@ import logging
 import threading
 import multiprocessing
 from multiprocessing import Process
-import queue
 from uuid import uuid1
 
 import ujson
@@ -570,9 +569,6 @@ class GOODSRequest(object):
             return msg
         self._subset_finished = False
 
-        message_queue = multiprocessing.Queue()
-        message_queue.write = message_queue.put
-
         logger.info(f'Starting GOODS request {self.request_id}')
         # if (not hasattr(libgoods.config, 'archive_dir') or
         #         self.orig_request.config.local_archive_dir is not None):
@@ -580,7 +576,7 @@ class GOODSRequest(object):
         #                            '(main thread)')
         self.request_thread = threading.Thread(
             target=self._thread_request_func,
-            args=(self.request_args, logger, message_queue),
+            args=(self.request_args, logger),
             daemon=True
         )
         self.request_thread.start()
@@ -597,6 +593,7 @@ class GOODSRequest(object):
         self.state = 'error'
         self.error_type = t
         self.message = msg
+        self.logger.error(f'Error in request {self.request_id}: {t} {msg}')
 
     def reset(self):
         self.state = 'preparing'
@@ -650,82 +647,53 @@ class GOODSRequest(object):
         self.reset()
         self.start()
 
-    def _thread_request_func(self, request_args, logger, mq):
+    def _thread_request_func(self, request_args, logger):
         if (not hasattr(libgoods.config, 'archive_dir') and
                 self.orig_request.config.local_archive_dir is not None):
             raise EnvironmentError('libgoods archive directory not set '
                                    '(worker thread)')
         logger.info('START')
+        main_pipe, sub_pipe = multiprocessing.Pipe()
         # STEP 1: Subset process to query libgoods for model subset
         status = result = None
-        if (self.orig_request.registry.settings.get('goods_use_subprocess_subset', 'true') == 'true'):
-            # use a subprocess
-            # self.outpath so that the subprocess also writes the file
-            #  - a bit of a hack, shold be rethought?
-            self.subset_process = Process(target=subset_process_func,
-                                          args=(request_args, mq, self.outpath),
-                                          daemon=True)
-            self.subset_process.start()
-            counter = 180
-            timeout = 180
-            try:
-                status = mq.get(timeout=30)  # startup timeout (expected msg 'startup')
-                counter = 0
-                self.state = 'subsetting'
-            except queue.Empty:
+        # use a subprocess
+        # self.outpath so that the subprocess also writes the file
+        #  - a bit of a hack, shold be rethought?
+        self.subset_process = Process(target=subset_process_func,
+                                        args=(request_args, sub_pipe, self.outpath),
+                                        daemon=True)
+        counter = 180
+        timeout = 180
+        self.subset_process.start()
+        try:
+            if (main_pipe.poll(60)):  # startup timeout (expected msg 'startup')
+                msg = main_pipe.recv()
+                logger.info('Startup message received from subset process: ' + str(msg))
+            else:
                 if not self.cancel_event.is_set(): #cancelling sets this event, so only log if not cancelled
                     msg = f'Subset process failed to start within timeout for request {self.filename}'
-                    logger.error(msg)
                     self.error('startup_timeout', msg)
                 return
-            msg = '0'
-            #rudimentary progress loop to capture messages from the subset process and update time elapsed until process finishes or times out
-            while counter < timeout:  # 3 minutes until loop times out
-                logger.info('SUBSET PROGESS: ' + str(counter))
-                try:
-                    msg = mq.get(timeout=2)
-                    if msg == 'success' or msg == 'error':
-                        #next message is result or error message.
-                        logger.info('leaving progress loop via break')
-                        logger.info('Message: {0}'.format(msg))
-                        logger.info('Joining subset process')
-                        status = msg
-                        try:
-                            result = mq.get(timeout=30)
-                        except queue.Empty:
-                            m = 'Subset process reported success or error but failed to send final result through queue before timeout'
-                            logger.error(m)
-                            self.error('join_timeout', m)
-                        break
-                    elif msg == 'subset_complete':
-                        logger.info('Subset process reported subset_complete')
-                        self.state = 'retrieving'
-                        self.message = 'Subset complete, retrieving data'
-                        self._subset_finished = True
-                        try:
-                            sz = mq.get(timeout=30)  # wait for result or error message
-                            logger.info(f'Subset size received from subset process: {sz}')
-                        except queue.Empty:
-                            m = 'Subset process reported subset_complete but failed to send size through queue before timeout'
-                            logger.error(m)
-                            self.error('join_timeout', m)
-                            break
-                        if (sz == -1):
-                            self.error('subset_error', 'Subset process failed to retrieve subset size')
-                            logger.error('Size could not be retrieved for subset')
-                            break
-                        self.subset_size = sz
-                        if self.subset_size > self._max_size:
-                            self.error('too_large', f'Subset size is too large ({self.subset_size}), maximum allowed is {self._max_size}')
-                            mq.put('terminate')  # signal subset process to terminate if it is still running
-                            break
-                        else:
-                            mq.put('continue')  # signal subset process to continue with retrieval if it is still running
-                    else:
-                        if msg:
-                            logger.info('Message: {0}'.format(msg))
-                        self.time_elapsed = counter
-                except queue.Empty:
+                
+            counter = 0
+            self.state = 'subsetting'
+        except EOFError:
+            if not self.cancel_event.is_set(): #cancelling sets this event, so only log if not cancelled
+                msg = f'Process terminated before startup message received for request {self.filename}'
+                self.error('startup_termination', msg)
+            return
+        except Exception as e:
+            self.error('startup_error', 'Error while waiting for startup message from subset process: ' + repr(e))
+            return
+        
+        msg = '0'
+        #rudimentary progress loop to capture messages from the subset process and update time elapsed until process finishes or times out
+        while counter < timeout:  # 3 minutes until loop times out
+            logger.info('SUBSET PROGESS: ' + str(counter))
+            try: #get message from subprocess pipe. 
+                if main_pipe.poll(2):  # wait for message with timeout to allow for periodic time elapsed updates
+                    msg = main_pipe.recv()
+                else:                    
                     counter += 2
                     if self.state == 'subsetting':
                         self.subset_time = counter
@@ -738,35 +706,62 @@ class GOODSRequest(object):
                         logger.info('Subset process has exited with exitcode ' + str(self.subset_process.exitcode) + '. Breaking progress loop.')
                         break
                     self.time_elapsed = counter
+                    continue
+            except EOFError:
+                if not self.cancel_event.is_set(): #cancelling sets this event, so only log if not cancelled
+                    self.error('pipe_closed', f'Subprocess pipe closed for request {self.filename}')
+                return
+            except Exception as e:
+                self.error('unknown_error', 'Error while waiting for message from subprocess: ' + repr(e))
+                return
+            
+            #specific message handlers
+            if 'success' in msg or 'error' in msg:
+                #next message is result or error message.
+                logger.info('leaving progress loop via break')
+                logger.info('Message: {0}'.format(msg))
+                logger.info('Joining subset process')
+                status = msg[0]
+                result = msg[1]
+                break
+            elif 'subset_complete' in msg:
+                logger.info('Subset process reported subset_complete')
+                self.state = 'retrieving'
+                self.message = 'Subset complete, retrieving data'
+                self._subset_finished = True
+                self.subset_size = msg[1]
+                if (self.subset_size == -1):
+                    self.error('subset_error', 'Subset process failed to retrieve subset size')
+                    logger.error('Size could not be retrieved for subset')
+                    break
+                if self.subset_size > self._max_size:
+                    self.error('too_large', f'Subset size is too large ({self.subset_size}), maximum allowed is {self._max_size}')
+                    main_pipe.send('terminate')  # signal subset process to terminate if it is still running
+                    break
+                else:
+                    main_pipe.send('continue')  # signal subset process to continue with retrieval if it is still running
+            else:
+                if msg:
+                    logger.info('Message: {0}'.format(msg))
                     
-            mq.close()
-            mq.cancel_join_thread()
-            self.subset_process.join(5) # give it a few seconds to clean up if it finished while we were waiting for messages
-            if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
-                # process still running (self.subset_process.exitcode is None), and timeout exceeded
-                m = f'Subset process exceeded timeout of {timeout} seconds for request {self.filename}'
-                self.error('subset_timeout', m)
-                return
-            elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode not in (0, -15) or status == 'error'):
-                logger.info('SUBSET FAILED: '
-                            f'exitcode: {self.subset_process.exitcode}')
-                self.error('subprocess_error', 'Subset process reported error: ' + repr(result))
-                return
-        else: # not using a subprocess for the subsetting, etc.
-            # this is barely tested, definitely not safe for production...
-            # might be better to call subset_process_func() (with dummpy mq)
-            # that that the code stays in sync.
-            request_args.pop('libgoods_archive', None)
-            result = api.get_model_subset(**request_args)
-            result.write_nc(outpath)
-            status = 'success'
+        self.subset_process.join(10) # give it a few seconds to clean up if it finished while we were waiting for messages
+        if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
+            # process still running (self.subset_process.exitcode is None), and timeout exceeded
+            m = f'Subset process exceeded timeout of {timeout} seconds for request {self.filename}'
+            self.error('subset_timeout', m)
+            return
+        elif hasattr(self.subset_process, 'exitcode') and (self.subset_process.exitcode not in (0, -15) or status == 'error'):
+            logger.info('SUBSET FAILED: '
+                        f'exitcode: {self.subset_process.exitcode}')
+            self.error('subprocess_error', 'Subset process reported error: ' + repr(result))
+            return
+        
         logger.info('RESULT: {}'.format(repr(result)))
         if result is None:
+            #subset process failed for some expected reason.
             self._request_finished = True
             self.complete_event.set()
             return
-        # Needs further development in the client before we can add this back in.
-
         self._request_finished = True
         self.state = 'finished'
         register_exportable_file(self.orig_request, self.filename, self.outpath)
@@ -828,27 +823,27 @@ class Tracker(Callback):
             self.model.elapsed = elapsed
 
 
-def subset_process_func(request_args, mq, outpath):
-    mq.put('startup')  # startup sync message
+def subset_process_func(request_args, sub_pipe, outpath):
+    sub_pipe.send('startup')  # startup sync message
 
     # Fixme: couldn't all this figure out the archive stuff be done ahead of time?
     #        the client is never going to know the archive dir, so it's not request specific.
     # No, it's not request specific. It is provided because the subprocess made with 'spawn' does not
     # retain the main process's libgoods config, so the archive_dir needs to be passed in and set here.
     if request_args.get('libgoods_archive', None):
-        mq.put('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
+        sub_pipe.send('libgoods archive reqested: '+ request_args.get('libgoods_archive').__str__())
 
     # if libgoods.config.archive_dir does not exist, but a libgoods_archive is provided, use that
     if (libgoods.config.archive_dir is None):
         if request_args.get('libgoods_archive', None):
             libgoods.config.archive_dir = request_args.get('libgoods_archive')
-            mq.put('set libgoods archive dir to: ' +
+            sub_pipe.send('set libgoods archive dir to: ' +
                    request_args.get('libgoods_archive').__str__())
             request_args.pop('libgoods_archive', None)
         else:
-            mq.put('config.libgoods_archive not set')
+            sub_pipe.send('config.libgoods_archive not set')
     else:
-        mq.put('libgoods.config.archive_dir: ' + libgoods.config.archive_dir.__str__())
+        sub_pipe.send('libgoods.config.archive_dir: ' + libgoods.config.archive_dir.__str__())
 
     #pop libgoods_archive from request_args since it's not a valid arg for get_model_subset
     request_args.pop('libgoods_archive', None)
@@ -856,30 +851,32 @@ def subset_process_func(request_args, mq, outpath):
     try:
         # raise ValueError('test error')
         result = api.get_model_subset(**request_args)
-        mq.put('subset_complete')
         try:
             sz = result.ds.nbytes or result.size()
             if (not sz and sz != 0):
                 sz = -1
         except Exception as e:
-            mq.put('error')
-            mq.put('Subset process failed to retrieve subset size: ' + repr(e))
-            return
-        mq.put(sz)
+            sub_pipe.send(('error', 'Subset process failed to retrieve subset size: ' + repr(e)))
+            raise
+        sub_pipe.send(('subset_complete', sz))
         try:
-            c = mq.get(5)  # wait for confirmation to proceed
-            if c == 'terminate':
-                mq.put('error')
-                mq.put('Subset process received a terminate signal after reporting subset size, terminating subset process')
+            if sub_pipe.poll(60):  # wait for reconfirmation with timeout
+                c = sub_pipe.recv()
+            else:
+                sub_pipe.send(('error', 'Subset process failed to receive reconfirmation within timeout'))
                 return
-        except queue.Empty:
-            mq.put('error')
-            mq.put('Subset process failed to receive reconfirmation within timeout')
+        except Exception as e:
+            self.error('unknown_error', 'Error while waiting for message from subprocess: ' + repr(e))
+            return
+        if c == 'terminate':
+            sub_pipe.send(('error', 'Subset process received a terminate signal after reporting subset size, terminating subset process'))
+            return
+        elif c != 'continue':
+            sub_pipe.send(('error', f'Subset process received unrecognized confirmation message "{c}", terminating subset process'))
             return
         result.write_nc(outpath)
-        mq.put('success')
-        mq.put(result)
+        sub_pipe.send(('success', outpath))
     except Exception as e:
-        mq.put('error')
-        mq.put(repr(e), block=True, timeout=5)
+        sub_pipe.send(('error', repr(e)))
         raise
+    sub_pipe.close()
