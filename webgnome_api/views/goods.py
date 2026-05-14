@@ -866,7 +866,7 @@ def subset_process_func(request_args, sub_pipe, outpath):
                 sub_pipe.send(('error', 'Subset process failed to receive reconfirmation within timeout'))
                 return
         except Exception as e:
-            self.error('unknown_error', 'Error while waiting for message from subprocess: ' + repr(e))
+            sub_pipe.send(('error', 'Error while waiting for message from subprocess: ' + repr(e)))
             return
         if c == 'terminate':
             sub_pipe.send(('error', 'Subset process received a terminate signal after reporting subset size, terminating subset process'))
