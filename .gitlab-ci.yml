@@ -111,7 +111,7 @@ stages:
     PYGNOME_VER: production
     LIBGOODS_VER: v2.2.2
     WEBGNOME_API_VER: $CI_COMMIT_TAG
-    WEBGNOME_CLIENT_VER: production
+    WEBGNOME_CLIENT_VER: v1.1.6
     IMAGE_NAME: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}-c-${WEBGNOME_CLIENT_VER}-p-${PYGNOME_VER}-l-${LIBGOODS_VER}
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" # Skip for merge requests
