@@ -1493,6 +1493,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zope.deprecation-4.4.0-py_0.tar.bz2
       - conda: https://prefix.dev/conda-forge/noarch/zope.event-6.2-pyhcf101f3_0.conda
       - pypi: .
+      - pypi: ../libgoods/
       - pypi: ../pygnome/py_gnome/
       osx-64:
       - conda: https://prefix.dev/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_2.conda
@@ -1805,6 +1806,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/zope.interface-8.5-py312hba6025d_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: .
+      - pypi: ../libgoods/
       - pypi: ../pygnome/py_gnome/
       osx-arm64:
       - conda: https://prefix.dev/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_2.conda
@@ -2126,6 +2128,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/zope.interface-8.5-py312hb3ab3e3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: .
+      - pypi: ../libgoods/
       - pypi: ../pygnome/py_gnome/
       win-64:
       - conda: https://prefix.dev/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_2.conda
@@ -2448,6 +2451,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/zope.interface-8.5-py312he5662c2_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: .
+      - pypi: ../libgoods/
       - pypi: ../pygnome/py_gnome/
 packages:
 - conda: https://prefix.dev/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -18297,6 +18301,22 @@ packages:
 - pypi: .
   name: webgnome-api
   requires_python: '>=3.10'
+- pypi: ../libgoods/
+  name: libgoods
+  requires_dist:
+  - xarray-subset-grid>=0.1.0
+  - netcdf4
+  - numpy>=2.4
+  - requests
+  - shapely
+  - pandas
+  - pyyaml
+  - siphon
+  - fiona
+  - cfgrib
+  - s3fs
+  - zarr<3
+  requires_python: '>=3.12'
 - pypi: ../pygnome/py_gnome/
   name: gnome
   requires_python: '>=3.10,<3.14'

@@ -93,7 +93,7 @@ testfixtures = "*"
 # needed to build pygnome
 cython="3.*"
 pip = "*"
-setuptools= ">=62"
+setuptools= ">=62,<81"
 gitpython = "*"
 python-build = "*"
 cmake = "*"
@@ -103,7 +103,7 @@ scikit-build-core = ">=0.9.9"
 [feature.dev.pypi-dependencies]
 # for dev, depends on the local source
 webgnome-api = { path = ".", editable = true }
-# libgoods = {path = "../libgoods/", editable = true }
+libgoods = {path = "../libgoods/", editable = true }
 gnome = {path = "../pygnome/py_gnome/", editable = true }
 
 # need redis server for Mac
@@ -128,6 +128,7 @@ dev = ["dev"]
 redis = { cmd = """{% if "osx" in pixi.platform  %} redis-server --daemonize yes {% else %} echo "Not Starting redis -- it should be already running" {% endif %}"""}
 test = { cmd = "pytest", default-environment = "dev", depends-on = ["redis"] }
 
+run_api { cmd ""}
 
 # Examples from Pixi Docs:
 
