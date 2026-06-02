@@ -15,8 +15,9 @@ import ujson
 import json
 
 # if you want to ignore some locations, put them here.
-LOCATIONS_TO_IGNORE = ["strait_of_juan_de_fuca",
-                       ]
+LOCATIONS_TO_IGNORE = []
+# ["strait_of_juan_de_fuca",
+#                       ]
 
 
 here = Path(__file__).absolute().parent
