@@ -8,6 +8,7 @@ ARG WEBGNOME_CLIENT_VER=main
 FROM registry.orr.noaa.gov/erd/environments/ubuntu-pixi-67:latest AS api
 
 ARG BUILD_KEY=
+ARG CI_JOB_TOKEN=
 ARG PYTHON_VER=3.13
 ARG PYGNOME_VER=main
 ARG LIBGOODS_VER=develop
@@ -21,7 +22,19 @@ ENV WEBGNOME_API_VER=${WEBGNOME_API_VER}
 
 COPY ./generate_env.sh ./
 RUN ./generate_env.sh
-RUN git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/data.git -b master --depth=1 /py_gnome_testdata
+# RUN git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/data.git -b master --depth=1 /py_gnome_testdata
+
+# For this to work this project must be added to the Job token permissions in PyGnome (already completed)
+RUN set -eu; \
+    # When the CI_JOB_TOKEN arg is provided it will use it otherwise fallback to the build key.
+    if [ -n "${CI_JOB_TOKEN:-}" ]; then \
+        GIT_USER="gitlab-ci-token"; \
+        GIT_TOKEN="${CI_JOB_TOKEN}"; \
+    else \
+        GIT_USER="build_key"; \
+        GIT_TOKEN="${BUILD_KEY}"; \
+    fi; \
+    git clone "https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/data.git" -b master --depth=1 /py_gnome_testdata
 
 FROM registry.orr.noaa.gov/gnome/webgnomeclient:${WEBGNOME_CLIENT_VER} AS client_dev
 
