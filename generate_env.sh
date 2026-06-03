@@ -26,9 +26,18 @@ pixi add --platform win-64 posix
 pixi add --platform linux-64 clang
 
 echo "Cloning repositories..."
-git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/pygnome.git -b $PYGNOME_VER --depth=1
-git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/libgoods.git -b $LIBGOODS_VER --depth=1
-git clone https://build_key:${BUILD_KEY}@gitlab.orr.noaa.gov/gnome/webgnomeapi.git -b $WEBGNOME_API_VER --depth=1
+
+if [ -n "${CI_JOB_TOKEN:-}" ]; then
+	GIT_USER="gitlab-ci-token"
+	GIT_TOKEN="${CI_JOB_TOKEN}"
+else
+	GIT_USER="build_key"
+	GIT_TOKEN="${BUILD_KEY}"
+fi
+
+git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/pygnome.git -b $PYGNOME_VER --depth=1
+git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git -b $LIBGOODS_VER --depth=1
+git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/webgnomeapi.git -b $WEBGNOME_API_VER --depth=1
 
 awk '!/^#/ && NF' ./pygnome/py_gnome/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 awk '!/^#/ && NF' ./libgoods/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
