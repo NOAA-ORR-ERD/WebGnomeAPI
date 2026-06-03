@@ -23,6 +23,7 @@ stages:
   script:
     - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
       ${CI_REGISTRY}
+    - echo "$CI_JOB_TOKEN"
     - >
       docker build \
         --build-arg git_commit_short_hash=${CI_COMMIT_SHORT_SHA} \
@@ -32,7 +33,7 @@ stages:
         --build-arg LIBGOODS_VER=${LIBGOODS_VER} \
         --build-arg WEBGNOME_API_VER=${WEBGNOME_API_VER} \
         --build-arg WEBGNOME_CLIENT_VER=${WEBGNOME_CLIENT_VER} \
-        --build-arg CI_JOB_TOKEN=${CI_JOB_TOKEN} \
+        --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN \
         --build-arg BUILD_KEY=${BUILD_KEY} \
         --build-arg OAUTH_TOKEN="${OAUTH_TOKEN}" \
         --target ${TARGET_ENV} \
