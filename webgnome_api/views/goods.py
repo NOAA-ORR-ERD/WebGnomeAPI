@@ -49,6 +49,10 @@ goods_nws_wind = Service(name='nws', path='/goods/nws*',
                          description="GOODS NWS Point Wind API",
                          cors_policy=cors_policy)
 
+goods_ndbc_wind = Service(name='ndbc', path='/goods/ndbc*',
+                         description="GOODS NDBC Point Wind API",
+                         cors_policy=cors_policy)
+
 goods_validation = Service(name='validation', path='/goods/validation*',
                            description="GOODS SUBSET VALIDATION API",
                            cors_policy=cors_policy)
@@ -244,6 +248,30 @@ def get_nws_wind(request):
 
     return data
 
+@goods_ndbc_wind.get()
+def get_NDBC_wind(request):
+    '''
+    Uses the payload passed by the client to make a NWS wind request
+    from libGOODS.
+    This file is then used to create a map object, which is then returned
+    to the client
+
+    Example post:
+    req_params = {
+                  'buoy_id': '46041',
+                  'days_ago': 45,
+                  }
+    '''
+    params = request.GET
+
+    breakpoint()
+    try:
+        data = api.get_NDBC_wind(station=params['buoy_id'], tz_offset=0, number_days_ago=params['days_ago'])
+    except ValueError as e:
+        return cors_response(request, HTTPNotFound(e))
+
+    return data
+
 
 def create_goods_request(request):
     '''
@@ -268,7 +296,7 @@ def create_goods_request(request):
 
     params = request.POST
     upload_dir = os.path.relpath(get_session_dir(request))
-    _max_upload_size = eval(request.registry.settings['max_upload_size'])
+    max_upload_size = eval(request.registry.settings['max_upload_size'])
 
     w = float(params['WestLon'])
     s = float(params['SouthLat'])
@@ -674,7 +702,7 @@ class GOODSRequest(object):
                     msg = f'Subset process failed to start within timeout for request {self.filename}'
                     self.error('startup_timeout', msg)
                 return
-                
+
             counter = 0
             self.state = 'subsetting'
         except EOFError:
@@ -685,15 +713,15 @@ class GOODSRequest(object):
         except Exception as e:
             self.error('startup_error', 'Error while waiting for startup message from subset process: ' + repr(e))
             return
-        
+
         msg = '0'
         #rudimentary progress loop to capture messages from the subset process and update time elapsed until process finishes or times out
         while counter < timeout:  # 3 minutes until loop times out
             logger.info('SUBSET PROGESS: ' + str(counter))
-            try: #get message from subprocess pipe. 
+            try: #get message from subprocess pipe.
                 if main_pipe.poll(2):  # wait for message with timeout to allow for periodic time elapsed updates
                     msg = main_pipe.recv()
-                else:                    
+                else:
                     counter += 2
                     if self.state == 'subsetting':
                         self.subset_time = counter
@@ -714,7 +742,7 @@ class GOODSRequest(object):
             except Exception as e:
                 self.error('unknown_error', 'Error while waiting for message from subprocess: ' + repr(e))
                 return
-            
+
             #specific message handlers
             if 'success' in msg or 'error' in msg:
                 #next message is result or error message.
@@ -743,7 +771,7 @@ class GOODSRequest(object):
             else:
                 if msg:
                     logger.info('Message: {0}'.format(msg))
-                    
+
         self.subset_process.join(10) # give it a few seconds to clean up if it finished while we were waiting for messages
         if hasattr(self.subset_process, 'exitcode') and self.subset_process.exitcode is None and counter >= timeout:
             # process still running (self.subset_process.exitcode is None), and timeout exceeded
@@ -755,7 +783,7 @@ class GOODSRequest(object):
                         f'exitcode: {self.subset_process.exitcode}')
             self.error('subprocess_error', 'Subset process reported error: ' + repr(result))
             return
-        
+
         logger.info('RESULT: {}'.format(repr(result)))
         if result is None:
             #subset process failed for some expected reason.
