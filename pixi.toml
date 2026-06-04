@@ -106,7 +106,7 @@ webgnome-api = { path = ".", editable = true }
 libgoods = {path = "../libgoods/", editable = true }
 gnome = {path = "../pygnome/py_gnome/", editable = true }
 
-# need redis server for Mac
+# need redis server for Mac (could also do linux -- there is none for Windows)
 [target.osx-64.dependencies]
 redis-server = "*"
 
@@ -115,7 +115,9 @@ redis-server = "*"
 
 
 [environments]
-default = { solve-group = "default" }
+default = { features = ["dev"], solve-group = "default" }
+
+# default = { solve-group = "default" }
 dev = ["dev"]
 # run = ["run"]
 # build-gnome = ["build-gnome"]
@@ -128,7 +130,7 @@ dev = ["dev"]
 redis = { cmd = """{% if "osx" in pixi.platform  %} redis-server --daemonize yes {% else %} echo "Not Starting redis -- it should be already running" {% endif %}"""}
 test = { cmd = "pytest", default-environment = "dev", depends-on = ["redis"] }
 
-run_api { cmd ""}
+# run_api { cmd ""}
 
 # Examples from Pixi Docs:
 
