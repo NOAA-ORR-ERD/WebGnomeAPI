@@ -37,18 +37,19 @@ fi
 
 # NOTE: there is a way to get only the latest tags -- but it's ugly :-)
 git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/pygnome.git -b $PYGNOME_VER --depth=1
-pushd pygnome && git fetch --tags --depth 1 && popd
+pushd pygnome && git fetch --tags && popd
 
 git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git -b $LIBGOODS_VER --depth=1
-pushd libgoods && git fetch --tags --depth 1 && popd
+pushd libgoods && git fetch --tags && popd
 
 git clone https://${GIT_USER}:${GIT_TOKEN}@gitlab.orr.noaa.gov/gnome/webgnomeapi.git -b $WEBGNOME_API_VER --depth=1
-pushd webgnomeapi && git fetch --tags --depth 1 && popd
+pushd webgnomeapi && git fetch --tags && popd
 
 awk '!/^#/ && NF' ./pygnome/py_gnome/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 awk '!/^#/ && NF' ./libgoods/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 awk '!/^#/ && NF' ./webgnomeapi/conda_requirements.txt | while read -r requirement; do pixi add "$requirement"; done
 
+# why are these being added from pypi? they are n conda-forge
 pixi add --pypi build pip
 
 echo "Build the Wheels 🛞"
