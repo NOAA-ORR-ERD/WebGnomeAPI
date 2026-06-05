@@ -186,6 +186,7 @@ Test Source:
     # get libgoods
     - git clone --depth 1 -b $LIBGOODS_VER
       https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.orr.noaa.gov/gnome/libgoods.git
+    - pushd libgoods && git fetch --tags --depth 1 && popd
 
     # install all the requirements
     - conda install -y python=$PYTHON_VER --file conda_requirements.txt --file
