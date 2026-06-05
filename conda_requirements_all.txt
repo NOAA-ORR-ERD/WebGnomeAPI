@@ -4,7 +4,7 @@
 #
 # build_requirements_file.py
 #
-# on 2026-05-12
+# on 2026-06-04
 #
 # It should be rerun if any of the requirements have changed
 # for PyGNOME or webgnomeapi
@@ -50,6 +50,7 @@ fiona
 cfgrib
 zarr<3
 python>=3.9,<3.14
+pip
 setuptools<81  # need old version for Pyramid and pkg_resources
 setuptools-scm
 numpy
@@ -65,7 +66,6 @@ ujson
 docutils
 htmlmin
 jsmin
-gitpython
 waitress
 pycparser
 gevent

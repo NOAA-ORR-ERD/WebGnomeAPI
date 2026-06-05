@@ -15,7 +15,7 @@
 # this is intended to be installed with py_gnome
 #  -- python version should already be pinned
 python>=3.9,<3.14
-
+pip
 setuptools<81  # need old version for Pyramid and pkg_resources
 setuptools-scm
 
@@ -35,7 +35,6 @@ ujson
 docutils
 htmlmin
 jsmin
-gitpython
 waitress
 
 pycparser
