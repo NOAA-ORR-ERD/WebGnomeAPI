@@ -264,7 +264,6 @@ def get_NDBC_wind(request):
     '''
     params = request.GET
 
-    breakpoint()
     try:
         data = api.get_NDBC_wind(station=params['buoy_id'], tz_offset=0, number_days_ago=params['days_ago'])
     except ValueError as e:
