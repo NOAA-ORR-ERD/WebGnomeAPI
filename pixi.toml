@@ -104,7 +104,7 @@ scikit-build-core = ">=0.9.9"
 # for dev, depends on the local source
 webgnome-api = { path = ".", editable = true }
 # libgoods = {path = "../libgoods/", editable = true }
-# gnome = {path = "../pygnome/py_gnome/", editable = true }
+gnome = {path = "../pygnome/py_gnome/", editable = true }
 
 # need redis server for Mac
 [target.osx-64.dependencies]
@@ -124,8 +124,9 @@ dev = ["dev"]
 [tasks]
 # this starts redis on OS-X (it's provided by conda-forge)
 # I can't get it to not wait for it to complete -- even though "& is there"
-# redis = { cmd = """{% if "osx" in pixi.platform  %} redis-server & {% else %} echo "Not Starting redis -- it should be already running" {% endif %}"""}
-test = { cmd = "pytest", default-environment = "dev" } # , depends-on = ["redis"] }
+# install_gnome = { cmd = """cd ../"""}
+redis = { cmd = """{% if "osx" in pixi.platform  %} redis-server --daemonize yes {% else %} echo "Not Starting redis -- it should be already running" {% endif %}"""}
+test = { cmd = "pytest", default-environment = "dev", depends-on = ["redis"] }
 
 
 # Examples from Pixi Docs:
